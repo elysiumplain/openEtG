@@ -1,4 +1,3 @@
-import { Fragment } from 'react';
 import { createStore, applyMiddleware } from 'redux';
 
 import * as usercmd from './usercmd.js';
@@ -162,7 +161,7 @@ export const store = createStore(
 			case 'CHAT': {
 				const chat = new Map(state.chat),
 					name = action.name ?? state.opts.channel,
-					span = <Fragment key={state.chatid}>{action.span}</Fragment>;
+					span = action.span;
 				chat.set(name, (chat.get(name) || []).concat([span]));
 				if (action.name === 'System')
 					chat.set('Main', (chat.get('Main') || []).concat([span]));

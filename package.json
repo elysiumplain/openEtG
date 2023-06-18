@@ -9,16 +9,13 @@
   },
   "devDependencies": {
     "@babel/plugin-syntax-import-assertions": "^7.22.5",
-    "@babel/plugin-syntax-jsx": "^7.22.5",
-    "@babel/plugin-transform-react-jsx": "^7.22.5",
     "babel-loader": "^9.1.2",
+    "babel-preset-solid": "^1.7.4",
     "copy-webpack-plugin": "^11.0.0",
     "html-webpack-plugin": "^5.5.3",
     "prettier": "^2.8.8",
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0",
-    "react-redux": "^8.1.0",
     "redux": "^4.2.1",
+    "solid-js": "^1.7.6",
     "spritesheet-js": "^1.2.8",
     "webpack": "^5.87.0",
     "webpack-cli": "^5.1.4"
@@ -35,5 +32,9 @@
     "build-mkrs-server": "node --experimental-modules --experimental-json-modules --experimental-wasm-modules ./scripts/mkrs-server.js",
     "build-wasm": "cargo build --release --manifest-path src/rs/Cargo.toml --target wasm32-unknown-unknown && wasm-bindgen --no-typescript --weak-refs --out-dir ./src/rs/pkg ./src/rs/target/wasm32-unknown-unknown/release/etg.wasm"
   },
-  "license": "MIT"
+  "license": "MIT",
+  "dependencies": {
+    "react-dom": "^18.2.0",
+    "react-redux": "^8.1.0"
+  }
 }

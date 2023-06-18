@@ -1,5 +1,4 @@
 import { useSelector } from 'react-redux';
-import { Fragment } from 'react';
 import * as etg from '../etg.js';
 import * as mkAi from '../mkAi.js';
 import * as sock from '../sock.jsx';
@@ -73,34 +72,32 @@ export default function Colosseum(props) {
 	for (let i = 1; i < 5; i++) {
 		const active = !(user.daily & (1 << i));
 		eventui.push(
-			<Fragment key={i}>
-				{active && (
-					<input
-						type="button"
-						value="Fight!"
-						style={{
-							position: 'absolute',
-							left: '50px',
-							top: `${100 + 30 * i}px`,
-						}}
-						onClick={() => mkDaily(i)}
-					/>
-				)}
-				<span
+			active && (
+				<input
+					type="button"
+					value="Fight!"
 					style={{
 						position: 'absolute',
-						left: '130px',
+						left: '50px',
 						top: `${100 + 30 * i}px`,
-					}}>
-					{active
-						? events[i - 1]
-						: i > 2
-						? user.daily & (i === 3 ? 1 : 32)
-							? 'You defeated this already today.'
-							: 'You failed this today. Better luck tomorrow!'
-						: 'Completed.'}
-				</span>
-			</Fragment>,
+					}}
+					onClick={() => mkDaily(i)}
+				/>
+			),
+			<span
+				style={{
+					position: 'absolute',
+					left: '130px',
+					top: `${100 + 30 * i}px`,
+				}}>
+				{active
+					? events[i - 1]
+					: i > 2
+					? user.daily & (i === 3 ? 1 : 32)
+						? 'You defeated this already today.'
+						: 'You failed this today. Better luck tomorrow!'
+					: 'Completed.'}
+			</span>,
 		);
 	}
 	return (

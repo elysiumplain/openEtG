@@ -1022,8 +1022,7 @@ export default function Match(props) {
 						game: game.clone(),
 					};
 				}
-				const c = cmd.x === 'cast' && cmd.c && game.byId(cmd.c),
-					t = cmd.x === 'cast' && cmd.t && game.byId(cmd.t);
+				const c = cmd.x === 'cast' && cmd.c && game.byId(cmd.c);
 				if (!c || c.ownerId === p1id || !c.owner.isCloaked()) {
 					setFoeplays(foeplays =>
 						new Map(foeplays).set(

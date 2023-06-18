@@ -1,5 +1,5 @@
 import { useSelector } from 'react-redux';
-import { useEffect, useMemo, useState, Fragment } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 import * as sock from '../sock.jsx';
 import Cards from '../Cards.js';
@@ -253,7 +253,7 @@ export default function Shop() {
 				</>
 			)}
 			{packdata.map((pack, n) => (
-				<Fragment key={pack.type}>
+				<>
 					<img
 						src={`/assets/pack${n}.webp`}
 						className="imgb"
@@ -277,7 +277,7 @@ export default function Shop() {
 							textAlign: 'center',
 						}}
 					/>
-				</Fragment>
+				</>
 			))}
 			{elebuttons}
 			{cards && <PackDisplay cards={cards} />}

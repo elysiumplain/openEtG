@@ -1,4 +1,4 @@
-import { Fragment, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useSelector } from 'react-redux';
 
 import Cards from '../Cards.js';
@@ -20,7 +20,7 @@ function AttrUi({ attr, sumscore, arpts, setAttr }) {
 		const { min = 0, incr = 1 } = artable[name];
 		const value = attr[name];
 		return (
-			<Fragment key={y}>
+			<>
 				<div
 					style={{
 						position: 'absolute',
@@ -63,7 +63,7 @@ function AttrUi({ attr, sumscore, arpts, setAttr }) {
 					}}>
 					{value}
 				</div>
-			</Fragment>
+			</>
 		);
 	});
 }
