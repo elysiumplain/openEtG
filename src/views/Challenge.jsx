@@ -1,5 +1,5 @@
-import { useCallback, useRef, useState } from 'react';
-import { useSelector } from 'react-redux';
+import { createMemo, createSignal } from 'solid-js';
+import { Index } from 'solid-js/web';
 
 import * as sock from '../sock.jsx';
 import Cards from '../Cards.js';
@@ -13,9 +13,9 @@ import deckgen from '../deckgen.js';
 
 const { mage, demigod } = aiDecks;
 function PremadePicker({ onClick, onClose }) {
-	const [search, setSearch] = useState('');
+	const [search, setSearch] = createSignal('');
 
-	const searchex = new RegExp(search, 'i');
+	const searchex = createMemo(() => new RegExp(search(), 'i'));
 	return (
 		<div
 			className="bgbox"
@@ -31,7 +31,7 @@ function PremadePicker({ onClick, onClose }) {
 			<input
 				style={{ display: 'block' }}
 				placeholder="Search"
-				value={search}
+				value={search()}
 				onChange={e => setSearch(e.target.value)}
 			/>
 			<input
@@ -47,11 +47,9 @@ function PremadePicker({ onClick, onClose }) {
 					verticalAlign: 'top',
 				}}>
 				{mage
-					.filter(x => searchex.test(x[0]))
+					.filter(x => searchex().test(x[0]))
 					.map(([name, deck]) => (
-						<div key={name} onClick={() => onClick(name, deck, false)}>
-							{name}
-						</div>
+						<div onClick={() => onClick(name, deck, false)}>{name}</div>
 					))}
 			</div>
 			<div
@@ -61,11 +59,9 @@ function PremadePicker({ onClick, onClose }) {
 					verticalAlign: 'top',
 				}}>
 				{demigod
-					.filter(x => searchex.test(x[0]))
+					.filter(x => searchex().test(x[0]))
 					.map(([name, deck]) => (
-						<div key={name} onClick={() => onClick(name, deck, true)}>
-							{name}
-						</div>
+						<div onClick={() => onClick(name, deck, true)}>{name}</div>
 					))}
 			</div>
 		</div>
@@ -73,16 +69,16 @@ function PremadePicker({ onClick, onClose }) {
 }
 
 function PlayerEditor(props) {
-	const [deckgen, setdeckgen] = useState(props.player.deckgen ?? '');
-	const [deck, setdeck] = useState(props.player.deck ?? '');
-	const [name, setname] = useState(props.player.name ?? '');
-	const [hp, sethp] = useState(props.player.hp ?? '');
-	const [mark, setmark] = useState(props.player.markpower ?? '');
-	const [draw, setdraw] = useState(props.player.drawpower ?? '');
-	const [deckpower, setdrawpower] = useState(props.player.deckpower ?? '');
-	const [premade, setpremade] = useState(false);
-	const [rnguprate, setrnguprate] = useState(0);
-	const [rngmaxrare, setrngmaxrare] = useState(9);
+	const [pdeckgen, setdeckgen] = createSignal(props.player.deckgen ?? '');
+	const [deck, setdeck] = createSignal(props.player.deck ?? '');
+	const [name, setname] = createSignal(props.player.name ?? '');
+	const [hp, sethp] = createSignal(props.player.hp ?? '');
+	const [mark, setmark] = createSignal(props.player.markpower ?? '');
+	const [draw, setdraw] = createSignal(props.player.drawpower ?? '');
+	const [deckpower, setdrawpower] = createSignal(props.player.deckpower ?? '');
+	const [premade, setpremade] = createSignal(false);
+	const [rnguprate, setrnguprate] = createSignal(0);
+	const [rngmaxrare, setrngmaxrare] = createSignal(9);
 
 	return (
 		<div>
@@ -90,25 +86,25 @@ function PlayerEditor(props) {
 				<input
 					placeholder="HP"
 					className="numput"
-					value={hp}
+					value={hp()}
 					onChange={e => sethp(e.target.value)}
 				/>
 				<input
 					placeholder="Mark"
 					className="numput"
-					value={mark}
+					value={mark()}
 					onChange={e => setmark(e.target.value)}
 				/>
 				<input
 					placeholder="Draw"
 					className="numput"
-					value={draw}
+					value={draw()}
 					onChange={e => setdraw(e.target.value)}
 				/>
 				<input
 					placeholder="Deck"
 					className="numput"
-					value={deckpower}
+					value={deckpower()}
 					onChange={e => setdeckpower(e.target.value)}
 				/>
 				&emsp;
@@ -117,26 +113,26 @@ function PlayerEditor(props) {
 					value="Ok"
 					onClick={() => {
 						const data = {};
-						parseInput(data, 'hp', hp);
-						parseInput(data, 'markpower', mark, 1188);
-						parseInput(data, 'drawpower', draw, 8);
-						parseInput(data, 'deckpower', deckpower);
+						parseInput(data, 'hp', hp());
+						parseInput(data, 'markpower', mark(), 1188);
+						parseInput(data, 'drawpower', draw(), 8);
+						parseInput(data, 'deckpower', deckpower());
 						let newdeck;
-						switch (deckgen) {
+						switch (pdeckgen()) {
 							case 'mage':
 							case 'demigod':
-								[data.name, deck] = choose(aiDecks[deckgen]);
-								newdeck = Promise.resolve(deck);
+								[data.name, newdeck] = choose(aiDecks[pdeckgen()]);
+								newdeck = Promise.resolve(newdeck);
 								break;
 							case 'rng':
 								newdeck = deckgen(
-									rnguprate * 100,
+									rnguprate() * 100,
 									data.markpower,
-									rngmaxrare | 0,
+									rngmaxrare() | 0,
 								);
 								break;
 							default:
-								newdeck = Promise.resolve(deck);
+								newdeck = Promise.resolve(deck());
 						}
 						if (name) data.name = name;
 						newdeck.then(x => {
@@ -148,14 +144,14 @@ function PlayerEditor(props) {
 			</div>
 			<div>
 				Deck:{' '}
-				<select value={deckgen} onChange={e => setdeckgen(e.target.value)}>
+				<select value={pdeckgen()} onChange={e => setdeckgen(e.target.value)}>
 					<option value="">Explicit</option>
 					<option value="mage">Random Mage</option>
 					<option value="demigod">Random Demigod</option>
 					<option value="rng">Random</option>
 				</select>
 			</div>
-			{deckgen === '' && (
+			{pdeckgen() === '' && (
 				<div>
 					<input
 						placeholder="Deck"
@@ -170,17 +166,17 @@ function PlayerEditor(props) {
 					/>
 				</div>
 			)}
-			{deckgen === 'rng' && (
+			{pdeckgen() === 'rng' && (
 				<div>
 					<input
 						placeholder="Upgrade %"
-						value={rnguprate}
+						value={rnguprate()}
 						onChange={e => setrnguprate(e.target.value)}
 					/>
 					&emsp;
 					<input
 						placeholder="Max Rarity"
-						value={rngmaxrare}
+						value={rngmaxrare()}
 						onChange={e => setrngmaxrare(e.target.value)}
 					/>
 				</div>
@@ -188,11 +184,11 @@ function PlayerEditor(props) {
 			<div>
 				<input
 					placeholder="Name"
-					value={name}
+					value={name()}
 					onChange={e => setname(e.target.value)}
 				/>
 			</div>
-			{premade && (
+			{premade() && (
 				<PremadePicker
 					onClose={() => setpremade(false)}
 					onClick={(name, deck, isdg) => {
@@ -215,41 +211,43 @@ function PlayerEditor(props) {
 
 function Group(props) {
 	return (
-		<div className="bgbox" style={{ width: '300px', marginBottom: '8px' }}>
-			{props.players.map((pl, i) => (
-				<div key={pl.idx} style={{ minHeight: '24px' }}>
-					<span onClick={() => props.toggleEditing(pl.idx)}>
-						{pl.name || ''} <i>{pl.user || 'AI'}</i>
-						{pl.pending === 2 && '...'}
-					</span>
-					{props.addEditing && pl.user !== props.host && (
-						<input
-							type="button"
-							value="-"
-							className="editbtn"
-							style={{ float: 'right' }}
-							onClick={() => {
-								const players = props.players.slice(),
-									[pl] = players.splice(i, 1);
-								props.updatePlayers(players);
-								props.removeEditing(pl.idx);
-							}}
-						/>
-					)}
-					{props.editing.has(pl.idx) && (
-						<PlayerEditor
-							player={pl}
-							updatePlayer={pl => {
-								const players = props.players.slice(),
-									{ idx } = players[i];
-								players[i] = { ...props.players[i], ...pl };
-								props.updatePlayers(players);
-								props.removeEditing(idx);
-							}}
-						/>
-					)}
-				</div>
-			))}
+		<div className="bgbox" style={{ width: '300px', 'margin-bottom': '8px' }}>
+			<Index each={props.players}>
+				{(pl, i) => (
+					<div style={{ minHeight: '24px' }}>
+						<span onClick={() => props.toggleEditing(pl.idx)}>
+							{pl.name || ''} <i>{pl.user || 'AI'}</i>
+							{pl.pending === 2 && '...'}
+						</span>
+						{props.addEditing && pl.user !== props.host && (
+							<input
+								type="button"
+								value="-"
+								className="editbtn"
+								style={{ float: 'right' }}
+								onClick={() => {
+									const players = props.players.slice(),
+										[pl] = players.splice(i, 1);
+									props.updatePlayers(players);
+									props.removeEditing(pl.idx);
+								}}
+							/>
+						)}
+						{props.editing.has(pl.idx) && (
+							<PlayerEditor
+								player={pl}
+								updatePlayer={pl => {
+									const players = props.players.slice(),
+										{ idx } = players[i];
+									players[i] = { ...props.players[i], ...pl };
+									props.updatePlayers(players);
+									props.removeEditing(idx);
+								}}
+							/>
+						)}
+					</div>
+				)}
+			</Index>
 			{props.addEditing && (
 				<div>
 					<input
@@ -281,23 +279,22 @@ function toMainMenu() {
 }
 
 export default function Challenge(props) {
-	const username = useSelector(({ user }) => user.name),
-		nextIdx = useRef(2);
+	const rx = store.useRedux(),
+		nextIdx = 2;
 
-	const [groups, setGroups] = useState(
-		() => props.groups ?? [[{ user: username, idx: 1, pending: 1 }], []],
+	const [groups, setGroups] = createSignal(
+		() => props.groups ?? [[{ user: rx.user.name, idx: 1, pending: 1 }], []],
 	);
-	const [set, setSet] = useState(props.set ?? '');
-	const [editing, setEditing] = useState(() => [new Set(), new Set()]);
-	const [replay, setReplay] = useState('');
-	const [mydeck, setMyDeck] = useState(() => sock.getDeck());
+	const [editing, setEditing] = createSignal(() => [new Set(), new Set()]);
+	const [replay, setReplay] = createSignal('');
+	const [mydeck, setMyDeck] = createSignal(() => sock.getDeck());
 
-	const getNextIdx = useCallback(() => nextIdx.current++, []);
+	const getNextIdx = () => nextIdx++;
 
 	const playersAsData = deck => {
 		const players = [];
 		let idx = 1;
-		for (const group of groups) {
+		for (const group of groups()) {
 			if (!group.length) continue;
 			const leader = idx;
 			for (const player of group) {
@@ -319,7 +316,7 @@ export default function Challenge(props) {
 		return players;
 	};
 	const aiClick = () => {
-		const deck = groups[0][0].deck || mydeck;
+		const deck = groups()[0][0].deck || mydeck();
 		if (etgutil.decklength(deck) < 9) {
 			store.store.dispatch(store.doNav(import('./DeckEditor.jsx')));
 			return;
@@ -338,7 +335,7 @@ export default function Challenge(props) {
 	const replayClick = () => {
 		let play;
 		try {
-			play = JSON.parse(replay);
+			play = JSON.parse(replay());
 			if (!play || typeof play !== 'object') {
 				return console.log('Invalid object');
 			}
@@ -391,24 +388,23 @@ export default function Challenge(props) {
 		});
 	};
 
-	const loadMyData = () => {
-		for (const group of groups) {
+	const mydata = createMemo(() => {
+		for (const group of groups()) {
 			for (const player of group) {
-				if (player.user === username) {
+				if (player.user === rx.user.name) {
 					return player;
 				}
 			}
 		}
 		return null;
-	};
+	});
 
-	const mydata = loadMyData(),
-		amhost = username === groups[0][0].user;
-	const isMultiplayer = groups.some(g =>
-		g.some(p => p.user && p.user !== username),
-	);
-	const allReady =
-		amhost && (!isMultiplayer || groups.every(g => g.every(p => !p.pending)));
+	const amhost = () => rx.user.name === groups()[0][0].user;
+	const isMultiplayer = () =>
+		groups().some(g => g.some(p => p.user && p.user !== rx.user.name));
+	const allReady = () =>
+		amhost() &&
+		(!isMultiplayer || groups().every(g => g.every(p => !p.pending)));
 
 	return (
 		<>
@@ -420,9 +416,9 @@ export default function Challenge(props) {
 				}}>
 				Warning: Lobby feature is still in development
 			</div>
-			{mydata?.deck && 'You have been assigned a deck'}
+			{mydata()?.deck && 'You have been assigned a deck'}
 			<input
-				value={mydeck}
+				value={mydeck()}
 				onChange={e => setMyDeck(e.target.value)}
 				style={{
 					position: 'absolute',
@@ -434,7 +430,7 @@ export default function Challenge(props) {
 				cards={Cards}
 				x={206}
 				y={377}
-				deck={(mydata && mydata.deck) || etgutil.decodedeck(mydeck)}
+				deck={mydata()?.deck || etgutil.decodedeck(mydeck())}
 				renderMark
 			/>
 			<input
@@ -450,7 +446,7 @@ export default function Challenge(props) {
 			<textarea
 				className="chatinput"
 				placeholder="Replay"
-				value={replay || ''}
+				value={replay()}
 				onChange={e => setReplay(e.target.value)}
 				style={{
 					position: 'absolute',
@@ -458,54 +454,55 @@ export default function Challenge(props) {
 					top: '32px',
 				}}
 			/>
-			{groups.map((players, i) => (
-				<Group
-					key={i}
-					players={players}
-					host={username}
-					hasUserAsPlayer={name =>
-						groups.some(g => g.some(p => p.user === name))
-					}
-					updatePlayers={p => updatePlayers(i, p)}
-					removeGroup={i > 0 && (() => removeGroup(i))}
-					getNextIdx={getNextIdx}
-					editing={editing[i]}
-					addEditing={
-						amhost &&
-						(idx =>
-							setEditing(state => {
+			<Index each={groups()}>
+				{(players, i) => (
+					<Group
+						players={players}
+						host={rx.user.name}
+						hasUserAsPlayer={name =>
+							groups().some(g => g.some(p => p.user === name))
+						}
+						updatePlayers={p => updatePlayers(i, p)}
+						removeGroup={i > 0 && (() => removeGroup(i))}
+						getNextIdx={getNextIdx}
+						editing={editing()[i]}
+						addEditing={
+							amhost() &&
+							(idx =>
+								setEditing(editing => {
+									const newediting = editing.slice();
+									newediting[i] = new Set(newediting[i]).add(idx);
+									return newediting;
+								}))
+						}
+						toggleEditing={idx =>
+							setEditing(editing => {
 								const newediting = editing.slice();
-								newediting[i] = new Set(newediting[i]).add(idx);
+								newediting[i] = new Set(newediting[i]);
+								if (newediting[i].has(idx)) {
+									newediting[i].delete(idx);
+								} else {
+									newediting[i].add(idx);
+								}
 								return newediting;
-							}))
-					}
-					toggleEditing={idx =>
-						setEditing(state => {
-							const newediting = editing.slice();
-							newediting[i] = new Set(newediting[i]);
-							if (newediting[i].has(idx)) {
+							})
+						}
+						removeEditing={idx =>
+							setEditing(editing => {
+								const newediting = editing.slice();
+								newediting[i] = new Set(newediting[i]);
 								newediting[i].delete(idx);
-							} else {
-								newediting[i].add(idx);
-							}
-							return newediting;
-						})
-					}
-					removeEditing={idx =>
-						setEditing(editing => {
-							const newediting = editing.slice();
-							newediting[i] = new Set(newediting[i]);
-							newediting[i].delete(idx);
-							return newediting;
-						})
-					}
-				/>
-			))}
+								return newediting;
+							})
+						}
+					/>
+				)}
+			</Index>
 			<div style={{ width: '300px' }}>
-				{amhost && <input type="button" value="+Group" onClick={addGroup} />}
-				{allReady
-					? groups.length > 1 &&
-					  groups.every(x => x.length) &&
+				{amhost() && <input type="button" value="+Group" onClick={addGroup} />}
+				{allReady()
+					? groups().length > 1 &&
+					  groups().every(x => x.length) &&
 					  editing.every(x => !x.size) && (
 							<input
 								style={{ float: 'right' }}

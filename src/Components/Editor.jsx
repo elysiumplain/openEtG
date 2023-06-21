@@ -1,10 +1,10 @@
-import { useState } from 'react';
+import { createSignal } from 'solid-js';
 
 import * as Components from '../Components/index.jsx';
 import * as etgutil from '../etgutil.js';
 
 export default function Editor(props) {
-	const [card, setCard] = useState(null);
+	const [card, setCard] = createSignal(null);
 
 	const addCard = card => {
 		if (props.deck.length < 60) props.setDeck(props.deck.concat([card.code]));
@@ -27,18 +27,20 @@ export default function Editor(props) {
 		}
 	};
 
-	const marksel = [];
-	for (let i = 0; i < 13; i++) {
-		marksel.push(
-			<Components.IconBtn
-				key={i}
-				e={'e' + i}
-				x={100 + i * 32}
-				y={234}
-				click={() => props.setMark(i)}
-			/>,
-		);
-	}
+	const marksel = () => {
+		const marksel = [];
+		for (let i = 0; i < 13; i++) {
+			marksel.push(
+				<Components.IconBtn
+					e={'e' + i}
+					x={100 + i * 32}
+					y={234}
+					click={() => props.setMark(i)}
+				/>,
+			);
+		}
+		return marksel;
+	};
 	return (
 		<>
 			<Components.DeckDisplay
@@ -82,7 +84,7 @@ export default function Editor(props) {
 				}}
 			/>
 			{marksel}
-			<Components.Card x={734} y={8} card={card} />
+			<Components.Card x={734} y={8} card={card()} />
 		</>
 	);
 }

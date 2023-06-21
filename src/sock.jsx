@@ -48,13 +48,15 @@ const sockEvents = {
 	roll(data) {
 		store.store.dispatch(
 			store.chat(
-				<div style={{ color: '#090' }}>
-					{data.u && <b>{data.u} </b>}
-					{data.A || 1}d{data.X}{' '}
-					<a href={`speed/${data.sum}`} target="_blank">
-						{data.sum}
-					</a>
-				</div>,
+				() => (
+					<div style={{ color: '#090' }}>
+						{data.u && <b>{data.u} </b>}
+						{data.A || 1}d{data.X}{' '}
+						<a href={`speed/${data.sum}`} target="_blank">
+							{data.sum}
+						</a>
+					</div>
+				),
 				'Main',
 			),
 		);
@@ -114,20 +116,22 @@ const sockEvents = {
 		if (lastindex !== data.msg.length) text.push(data.msg.slice(lastindex));
 		store.store.dispatch(
 			store.chat(
-				<div
-					style={
-						data.guest
-							? guestStyle
-							: data.mode === 2
-							? mode2Style
-							: data.mode !== 1
-							? chatStyle
-							: defaultStyle
-					}>
-					{`${hs}${ms} `}
-					{data.u && <b>{data.u} </b>}
-					{text}
-				</div>,
+				() => (
+					<div
+						style={
+							data.guest
+								? guestStyle
+								: data.mode === 2
+								? mode2Style
+								: data.mode !== 1
+								? chatStyle
+								: defaultStyle
+						}>
+						{`${hs}${ms} `}
+						{data.u && <b>{data.u} </b>}
+						{text}
+					</div>
+				),
 				data.mode === 1 ? null : 'Main',
 			),
 		);
@@ -187,7 +191,7 @@ const sockEvents = {
 	},
 	challenge(data) {
 		store.store.dispatch(
-			store.chat(
+			store.chat(() => (
 				<div
 					style={{ cursor: 'pointer', color: '#69f' }}
 					onClick={() => {
@@ -196,14 +200,14 @@ const sockEvents = {
 					{`${data.f} offers to duel you!`}
 					{data.set && <i> (in Legacy mode)</i>}
 					{!data.deckcheck && <i> (without deck checks)</i>}
-				</div>,
-			),
+				</div>
+			)),
 		);
 		userEmit('challrecv', { f: data.f });
 	},
 	offertrade(data) {
 		store.store.dispatch(
-			store.chat(
+			store.chat(() => (
 				<div
 					style={{ cursor: 'pointer', color: '#69f' }}
 					onClick={() =>
@@ -212,8 +216,8 @@ const sockEvents = {
 						)
 					}>
 					{`${data.f} offers to trade with you!`}
-				</div>,
-			),
+				</div>
+			)),
 		);
 		userEmit('challrecv', { f: data.f, trade: true });
 	},

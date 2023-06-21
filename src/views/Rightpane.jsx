@@ -1,4 +1,4 @@
-import { useSelector } from 'react-redux';
+import { useRedux } from '../store.jsx';
 
 import Chat from '../Components/Chat.jsx';
 import * as sock from '../sock.jsx';
@@ -6,12 +6,11 @@ import * as store from '../store.jsx';
 import parseChat from '../parseChat.js';
 
 function ChannelTab(props) {
-	const channel = useSelector(({ opts }) => opts.channel);
-	const className = channel === props.channel ? 'tabsel' : 'tab';
+	const rx = useRedux();
 
 	return (
 		<span
-			className={className}
+			className={rx.opts.channel === props.channel ? 'tabsel' : 'tab'}
 			onClick={e =>
 				store.store.dispatch(store.setOptTemp('channel', props.channel))
 			}>
@@ -19,26 +18,14 @@ function ChannelTab(props) {
 		</span>
 	);
 }
-const channelTabs = (
-	<div>
-		<ChannelTab channel="Main" />
-		<ChannelTab channel="System" />
-		<ChannelTab channel="Stats" />
-		<ChannelTab channel="Packs" />
-		<ChannelTab channel="Replay" />
-	</div>
-);
 
 export default function Rightpane(props) {
-	const offline = useSelector(({ opts }) => opts.offline);
-	const afk = useSelector(({ opts }) => opts.afk);
-	const showRightpane = !useSelector(({ opts }) => opts.hideRightpane);
-	const channel = useSelector(({ opts }) => opts.channel);
+	const rx = useRedux();
 
 	return (
-		showRightpane && (
+		!rx.opts.hideRightpane && (
 			<>
-				<div style={{ marginBottom: '8px' }}>
+				<div style={{ 'margin-bottom': '8px' }}>
 					<a href="artcredit.htm" target="_blank">
 						Art credits
 					</a>
@@ -57,7 +44,7 @@ export default function Rightpane(props) {
 				<label>
 					<input
 						type="checkbox"
-						checked={offline}
+						checked={rx.opts.offline}
 						onChange={e => {
 							sock.emit({ x: 'chatus', hide: e.target.checked });
 							store.store.dispatch(store.setOpt('offline', e.target.checked));
@@ -68,7 +55,7 @@ export default function Rightpane(props) {
 				<label>
 					<input
 						type="checkbox"
-						checked={afk}
+						checked={rx.opts.afk}
 						onChange={e => {
 							sock.emit({ x: 'chatus', afk: e.target.checked });
 							store.store.dispatch(store.setOptTemp('afk', e.target.checked));
@@ -76,8 +63,14 @@ export default function Rightpane(props) {
 					/>
 					Afk
 				</label>
-				{channelTabs}
-				<Chat channel={channel} />
+				<div>
+					<ChannelTab channel="Main" />
+					<ChannelTab channel="System" />
+					<ChannelTab channel="Stats" />
+					<ChannelTab channel="Packs" />
+					<ChannelTab channel="Replay" />
+				</div>
+				<Chat channel={rx.opts.channel} />
 				<textarea
 					className="chatinput"
 					placeholder="Chat"

@@ -1,5 +1,5 @@
-import { useMemo, useState } from 'react';
-import { useSelector } from 'react-redux';
+import { createMemo, createSignal } from 'solid-js';
+import { Index } from 'solid-js/web';
 
 import { playSound } from '../audio.js';
 import * as etg from '../etg.js';
@@ -63,10 +63,9 @@ export function CardImage(props) {
 
 export function Text(props) {
 	const elec = () => {
-		const { text, icoprefix = 'ce' } = props;
-		const str = text ? text.toString() : '';
+		const str = props.text ? props.text.toString() : '';
 		const sep = /\d\d?:\d\d?|\$|\n/g;
-		const ico = `ico ${icoprefix}`;
+		const ico = `ico ${props.icoprefix ?? 'ce'}`;
 		let reres,
 			lastindex = 0;
 		const elec = [];
@@ -76,9 +75,9 @@ export function Text(props) {
 				elec.push(str.slice(lastindex, reres.index));
 			}
 			if (piece === '\n') {
-				elec.push(<br key={elec.length} />);
+				elec.push(<br />);
 			} else if (piece === '$') {
-				elec.push(<span key={elec.length} className="ico gold" />);
+				elec.push(<span className="ico gold" />);
 			} else if (/^\d\d?:\d\d?$/.test(piece)) {
 				const parse = piece.split(':');
 				const num = +parse[0];
@@ -90,10 +89,7 @@ export function Text(props) {
 						elec.push(icon);
 					}
 				} else {
-					elec.push(
-						parse[0],
-						<span key={elec.length} className={ico + parse[1]} />,
-					);
+					elec.push(parse[0], <span className={ico + parse[1]} />);
 				}
 			}
 			lastindex = reres.index + piece.length;
@@ -150,7 +146,6 @@ export function ExitBtn(props) {
 }
 
 export function Card(p) {
-	console.log(p, p.card);
 	const textColor = () => p.card && (p.card.upped ? '#000' : ''),
 		backColor = () => p.card && maybeLightenStr(p.card);
 	return (
@@ -273,7 +268,6 @@ export function DeckDisplay(props) {
 				}
 				children.push(
 					<CardImage
-						key={j}
 						card={card}
 						onMouseOver={
 							props.onMouseOver && (() => props.onMouseOver(i, card))
@@ -314,7 +308,6 @@ export function RaritySelector(props) {
 	for (let i = 0; i < 5; i++) {
 		children.push(
 			<IconBtn
-				key={i}
 				e={(i ? 'r' : 't') + i}
 				x={props.x}
 				y={props.y + i * 24}
@@ -330,7 +323,6 @@ export function ElementSelector(props) {
 	for (let i = 0; i < 13; i++) {
 		children.push(
 			<IconBtn
-				key={i}
 				e={'e' + i}
 				x={!i || i & 1 ? props.x : props.x + 36}
 				y={286 + (((i + 1) / 2) | 0) * 32}
@@ -360,80 +352,83 @@ function poolCount(props, code) {
 	);
 }
 function CardSelectorColumn(props) {
-	const children = [],
-		countTexts = [];
-	for (let j = 0; j < props.cards.length; j++) {
-		const y = props.y + j * 19,
-			card = props.cards[j],
-			code = card.code;
-		let opacity = '.5';
-		if (props.cardpool) {
-			const scode = etgutil.asShiny(code, true);
-			const cardAmount = card.isFree()
-					? '-'
-					: code in props.cardpool
-					? poolCount(props, code)
-					: 0,
-				shinyAmount =
-					props.filterboth && props.shiny && scode in props.cardpool
-						? poolCount(props, scode)
-						: 0;
-			if (!props.cardpool || cardAmount !== 0 || shinyAmount !== 0) {
-				opacity = undefined;
-			} else if (card.upped && !card.Cards.Names.Relic) {
-				if (
-					poolCount(props, etgutil.asUpped(code, false)) >=
-					(card.rarity === -1 ? 1 : 6) * (card.upped && card.shiny ? 6 : 1)
-				) {
+	const memo = createMemo(() => {
+		const children = [],
+			countTexts = [];
+		for (let j = 0; j < props.cards.length; j++) {
+			const y = props.y + j * 19,
+				card = props.cards[j],
+				code = card.code;
+			let opacity = '.5';
+			if (props.cardpool) {
+				const scode = etgutil.asShiny(code, true);
+				const cardAmount = card.isFree()
+						? '-'
+						: code in props.cardpool
+						? poolCount(props, code)
+						: 0,
+					shinyAmount =
+						props.filterboth && props.shiny && scode in props.cardpool
+							? poolCount(props, scode)
+							: 0;
+				if (!props.cardpool || cardAmount !== 0 || shinyAmount !== 0) {
 					opacity = undefined;
-				} else if (
-					card.rarity === 4 &&
-					poolCount(props, etgutil.asUpped(scode, false)) >= 1
-				) {
-					opacity = undefined;
+				} else if (card.upped && !card.Cards.Names.Relic) {
+					if (
+						poolCount(props, etgutil.asUpped(code, false)) >=
+						(card.rarity === -1 ? 1 : 6) * (card.upped && card.shiny ? 6 : 1)
+					) {
+						opacity = undefined;
+					} else if (
+						card.rarity === 4 &&
+						poolCount(props, etgutil.asUpped(scode, false)) >= 1
+					) {
+						opacity = undefined;
+					}
 				}
+				countTexts.push(
+					<div
+						className={`selectortext ${
+							props.maxedIndicator &&
+							!card.getStatus('pillar') &&
+							cardAmount >= 6
+								? cardAmount >= 12
+									? ' beigeback'
+									: ' lightback'
+								: ''
+						}`}>
+						{cardAmount + (shinyAmount ? '/' + shinyAmount : '')}
+					</div>,
+				);
 			}
-			countTexts.push(
-				<div
-					key={countTexts.length}
-					className={`selectortext ${
-						props.maxedIndicator && !card.getStatus('pillar') && cardAmount >= 6
-							? cardAmount >= 12
-								? ' beigeback'
-								: ' lightback'
-							: ''
-					}`}>
-					{cardAmount + (shinyAmount ? '/' + shinyAmount : '')}
-				</div>,
+			children.push(
+				<CardImage
+					style={{
+						position: 'absolute',
+						left: `${props.x}px`,
+						top: `${y}px`,
+						opacity,
+					}}
+					card={card}
+					onClick={
+						props.onClick && (() => props.onClick(maybeShiny(props, card)))
+					}
+					onContextMenu={
+						props.onContextMenu &&
+						(e => {
+							e.preventDefault();
+							props.onContextMenu(code);
+						})
+					}
+					onMouseOver={
+						props.onMouseOver &&
+						(() => props.onMouseOver(maybeShiny(props, card)))
+					}
+				/>,
 			);
 		}
-		children.push(
-			<CardImage
-				key={code}
-				style={{
-					position: 'absolute',
-					left: `${props.x}px`,
-					top: `${y}px`,
-					opacity,
-				}}
-				card={card}
-				onClick={
-					props.onClick && (() => props.onClick(maybeShiny(props, card)))
-				}
-				onContextMenu={
-					props.onContextMenu &&
-					(e => {
-						e.preventDefault();
-						props.onContextMenu(code);
-					})
-				}
-				onMouseOver={
-					props.onMouseOver &&
-					(() => props.onMouseOver(maybeShiny(props, card)))
-				}
-			/>,
-		);
-	}
+		return { children, countTexts };
+	});
 	return (
 		<>
 			<div
@@ -443,15 +438,15 @@ function CardSelectorColumn(props) {
 					top: `${props.y}px`,
 					textHeight: '0',
 				}}>
-				{countTexts}
+				{memo().countTexts}
 			</div>
-			{children}
+			{memo().children}
 		</>
 	);
 }
 
 export function CardSelectorCore(props) {
-	const columns = useMemo(() => {
+	const columns = () => {
 		const columns = [];
 		const count = props.noupped ? 3 : 6;
 		for (let i = 0; i < count; i++) {
@@ -471,31 +466,26 @@ export function CardSelectorCore(props) {
 			);
 		}
 		return columns;
-	}, [
-		props.cards,
-		props.filter,
-		props.element,
-		props.rarity,
-		props.shiny,
-		props.filterboth,
-		props.noupped,
-	]);
+	};
 
-	return columns.map((cards, i) => (
-		<CardSelectorColumn
-			key={i}
-			{...props}
-			cards={cards}
-			x={props.x + i * 133}
-			y={props.y}
-		/>
-	));
+	return (
+		<Index each={columns()}>
+			{(cards, i) => (
+				<CardSelectorColumn
+					{...props}
+					cards={cards}
+					x={props.x + i * 133}
+					y={props.y}
+				/>
+			)}
+		</Index>
+	);
 }
 
 export function CardSelector(props) {
-	const [element, setElement] = useState(0);
-	const [rarity, setRarity] = useState(0);
-	const shiny = useSelector(({ opts }) => opts.toggleshiny);
+	const rx = store.useRedux();
+	const [element, setElement] = createSignal(0);
+	const [rarity, setRarity] = createSignal(0);
 
 	return (
 		<>
@@ -508,18 +498,20 @@ export function CardSelector(props) {
 					top: '578px',
 				}}
 				onClick={() =>
-					store.store.dispatch(store.setOpt('toggleshiny', !shiny))
+					store.store.dispatch(
+						store.setOpt('toggleshiny', !rx.opts.toggleshiny),
+					)
 				}
 			/>
-			<RaritySelector x={80} y={338} value={rarity} onChange={setRarity} />
-			<ElementSelector x={4} y={316} value={element} onChange={setElement} />
+			<RaritySelector x={80} y={338} value={rarity()} onChange={setRarity} />
+			<ElementSelector x={4} y={316} value={element()} onChange={setElement} />
 			<CardSelectorCore
 				{...props}
 				x={100}
 				y={272}
-				rarity={rarity}
-				element={element}
-				shiny={shiny}
+				rarity={rarity()}
+				element={element()}
+				shiny={rx.opts.toggleshiny}
 			/>
 		</>
 	);

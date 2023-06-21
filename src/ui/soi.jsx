@@ -49,7 +49,7 @@ function App() {
 		for (let idx = 0; idx < 12; idx++) {
 			const count = cs[idx];
 			form.push(
-				<div key={idx}>
+				<div>
 					<div className={`ico e${idx + 1}`} />
 					<input
 						style={{ display: 'block', width: '60px' }}

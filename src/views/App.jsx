@@ -1,6 +1,7 @@
-import { useSelector } from 'react-redux';
+import { useRedux } from '../store.jsx';
+import { Dynamic } from 'solid-js/web';
 
 export default function App(props) {
-	const nav = useSelector(({ nav }) => nav);
-	return <nav.view key={nav.key} {...nav.props} />;
+	const rx = useRedux();
+	return <Dynamic component={rx.nav.view} {...rx.nav.props} />;
 }

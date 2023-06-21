@@ -1,5 +1,4 @@
-import { useSelector } from 'react-redux';
-import { useEffect, useMemo, useState } from 'react';
+import { createSignal, onMount } from 'solid-js';
 
 import * as sock from '../sock.jsx';
 import Cards from '../Cards.js';
@@ -28,15 +27,14 @@ const packdata = [
 	{ cost: 250, type: 'Nymph', info: '1 Nymph' },
 ];
 
-function PackDisplay({ cards }) {
-	const [hoverCard, setHoverCard] = useState(null);
-	const children = useMemo(() => {
-		const deck = etgutil.decodedeck(cards),
-			dlen = etgutil.decklength(cards);
+function PackDisplay(props) {
+	const [hoverCard, setHoverCard] = createSignal(null);
+	const children = () => {
+		const deck = etgutil.decodedeck(props.cards),
+			dlen = etgutil.decklength(props.cards);
 		const children = [];
 		children.push(
 			<Components.DeckDisplay
-				key={0}
 				cards={Cards}
 				x={106}
 				deck={deck.slice(0, 50)}
@@ -46,7 +44,6 @@ function PackDisplay({ cards }) {
 		for (let start = 51; start < dlen; start += 70) {
 			children.push(
 				<Components.DeckDisplay
-					key={start}
 					cards={Cards}
 					x={-92}
 					y={244 + (((start - 51) / 70) | 0) * 200}
@@ -56,7 +53,7 @@ function PackDisplay({ cards }) {
 			);
 		}
 		return children;
-	}, [cards]);
+	};
 	return (
 		<div
 			className="bgbox"
@@ -69,43 +66,43 @@ function PackDisplay({ cards }) {
 				zIndex: '1',
 				overflowY: 'auto',
 			}}>
-			<Components.Card card={hoverCard} x={8} y={8} />
+			<Components.Card card={hoverCard()} x={8} y={8} />
 			{children}
 		</div>
 	);
 }
 
 export default function Shop() {
-	const user = useSelector(({ user }) => user);
-	const bulk = useSelector(({ opts }) => opts.bulk ?? '1');
-	const [info1, setInfo1] = useState('Select from which element you want');
-	const [info2, setInfo2] = useState('Select which type of pack you want');
-	const [ele, setEle] = useState(-1);
-	const [rarity, setRarity] = useState(-1);
-	const [buy, setBuy] = useState(true);
-	const [cards, setCards] = useState('');
+	const rx = store.useRedux();
+	const bulk = () => rx.opts.bulk ?? '1';
+	const [info1, setInfo1] = createSignal('Select from which element you want');
+	const [info2, setInfo2] = createSignal('Select which type of pack you want');
+	const [ele, setEle] = createSignal(-1);
+	const [rarity, setRarity] = createSignal(-1);
+	const [buy, setBuy] = createSignal(true);
+	const [cards, setCards] = createSignal('');
 
-	useEffect(() => {
+	onMount(() => {
 		store.store.dispatch(
 			store.setCmds({
 				boostergive: data => {
 					const userdelta = {};
 					if (data.accountbound) {
 						userdelta.accountbound = etgutil.mergedecks(
-							user.accountbound,
+							rx.user.accountbound,
 							data.cards,
 						);
-						const freepacks = user.freepacks && user.freepacks.slice();
+						const freepacks = rx.user.freepacks && rx.user.freepacks.slice();
 						if (freepacks) {
 							freepacks[data.packtype]--;
 							userdelta.freepacks = freepacks;
 						}
 					} else {
 						const bdata = {};
-						parseInput(bdata, 'bulk', bulk, 99);
-						userdelta.pool = etgutil.mergedecks(user.pool, data.cards);
+						parseInput(bdata, 'bulk', bulk(), 99);
+						userdelta.pool = etgutil.mergedecks(rx.user.pool, data.cards);
 						userdelta.gold =
-							user.gold - packdata[data.packtype].cost * (bdata.bulk || 1);
+							rx.user.gold - packdata[data.packtype].cost * (bdata.bulk || 1);
 					}
 					store.store.dispatch(store.updateUser(userdelta));
 					setCards(data.cards);
@@ -124,19 +121,19 @@ export default function Shop() {
 				},
 			}),
 		);
-	}, [user]);
+	});
 
 	const buyPack = () => {
-		const pack = packdata[rarity];
+		const pack = packdata[rarity()];
 		const boostdata = {
-			pack: rarity,
-			element: ele,
+			pack: rarity(),
+			element: ele(),
 		};
-		parseInput(boostdata, 'bulk', bulk, 99);
+		parseInput(boostdata, 'bulk', bulk(), 99);
 		boostdata.bulk ||= 1;
 		if (
-			user.gold >= pack.cost * (boostdata.bulk || 1) ||
-			(user.freepacks && user.freepacks[rarity] > 0)
+			rx.user.gold >= pack.cost * (boostdata.bulk || 1) ||
+			(rx.user.freepacks && rx.user.freepacks[rarity()] > 0)
 		) {
 			sock.userEmit('booster', boostdata);
 			setBuy(false);
@@ -145,12 +142,12 @@ export default function Shop() {
 		}
 	};
 
-	const hasFreePacks = !!(user.freepacks && user.freepacks[rarity]);
+	const hasFreePacks = () =>
+		!!(rx.user.freepacks && rx.user.freepacks[rarity()]);
 	const elebuttons = [];
 	for (let i = 0; i < 14; i++) {
 		elebuttons.push(
 			<Components.IconBtn
-				key={i}
 				e={'e' + i}
 				x={75 + (i >> 1) * 64}
 				y={117 + (i & 1) * 75}
@@ -168,7 +165,7 @@ export default function Shop() {
 			<Components.Box x={40} y={270} width={712} height={300} />
 			<Components.Box x={768} y={90} width={94} height={184} />
 			<Components.Text
-				text={user.gold + '$'}
+				text={rx.user.gold + '$'}
 				style={{
 					position: 'absolute',
 					left: '775px',
@@ -176,7 +173,7 @@ export default function Shop() {
 				}}
 			/>
 			<Components.Text
-				text={info1}
+				text={info1()}
 				style={{
 					position: 'absolute',
 					left: '50px',
@@ -189,18 +186,20 @@ export default function Shop() {
 					left: '50px',
 					top: '50px',
 				}}>
-				{info2}
+				{info2()}
 			</span>
 			<Components.ExitBtn x={775} y={246} />
-			{hasFreePacks && (
+			{hasFreePacks() && (
 				<span
 					style={{
 						position: 'absolute',
 						left: '350px',
 						top: '26px',
 					}}>
-					{!!user.freepacks[rarity] &&
-						`Free ${packdata[rarity].type} packs left: ${user.freepacks[rarity]}`}
+					{!!rx.user.freepacks[rarity()] &&
+						`Free ${packdata[rarity()].type} packs left: ${
+							rx.user.freepacks[rarity()]
+						}`}
 				</span>
 			)}
 			{cards && (
@@ -218,9 +217,9 @@ export default function Shop() {
 					}}
 				/>
 			)}
-			{buy && !!~ele && !!~rarity && (
+			{buy() && !!~ele() && !!~rarity() && (
 				<>
-					{!hasFreePacks && (
+					{!hasFreePacks() && (
 						<input
 							type="button"
 							value="Max Buy"
@@ -229,7 +228,7 @@ export default function Shop() {
 								store.store.dispatch(
 									store.setOptTemp(
 										'bulk',
-										Math.min((user.gold / pack.cost) | 0, 99).toString(),
+										Math.min((rx.user.gold / pack.cost) | 0, 99).toString(),
 									),
 								);
 							}}
@@ -274,18 +273,18 @@ export default function Shop() {
 							left: `${48 + 176 * n}px`,
 							top: '542px',
 							width: '160px',
-							textAlign: 'center',
+							'text-align': 'center',
 						}}
 					/>
 				</>
 			))}
 			{elebuttons}
-			{cards && <PackDisplay cards={cards} />}
-			{!hasFreePacks && !!~ele && !!~rarity && (
+			{cards() && <PackDisplay cards={cards()} />}
+			{!hasFreePacks() && !!~ele() && !!~rarity() && (
 				<input
 					type="number"
 					placeholder="Bulk"
-					value={bulk}
+					value={bulk()}
 					onChange={e =>
 						store.store.dispatch(store.setOptTemp('bulk', e.target.value))
 					}
