@@ -120,7 +120,7 @@ export default function OriginalResult({ game }) {
 				<Components.Text
 					text={`${electrumwonref}$`}
 					style={{
-						textAlign: 'center',
+						'text-align': 'center',
 						width: '900px',
 						position: 'absolute',
 						left: '0px',

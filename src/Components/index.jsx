@@ -81,15 +81,15 @@ export function Text(props) {
 			} else if (/^\d\d?:\d\d?$/.test(piece)) {
 				const parse = piece.split(':');
 				const num = +parse[0];
+				const className = ico + parse[1];
 				if (num === 0) {
 					elec.push('0');
 				} else if (num < 4) {
-					const icon = <span className={ico + parse[1]} />;
 					for (let j = 0; j < num; j++) {
-						elec.push(icon);
+						elec.push(<span className={className} />);
 					}
 				} else {
-					elec.push(parse[0], <span className={ico + parse[1]} />);
+					elec.push(parse[0], <span className={className} />);
 				}
 			}
 			lastindex = reres.index + piece.length;

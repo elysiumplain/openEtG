@@ -196,17 +196,17 @@ function computeBonuses(game, player1, lefttext, streakrate, setTip, clearTip) {
 	const bonus = BonusList.reduce((bsum, bonus) => {
 		const b = bonus.func(game, player1, player1.foe, replayStats);
 		if (b > 0) {
-			lefttext.push(
+			lefttext.push(() => (
 				<TooltipText tip={bonus.desc} setTip={setTip} clearTip={clearTip}>
 					{Math.round(b * 100)}% {bonus.name}
-				</TooltipText>,
-			);
+				</TooltipText>
+			));
 			return bsum + b;
 		} else return bsum;
 	}, 1);
-	lefttext.push(
-		<div>{((streakrate + 1) * bonus * 100 - 100).toFixed(1)}% total bonus</div>,
-	);
+	lefttext.push(() => (
+		<div>{((streakrate + 1) * bonus * 100 - 100).toFixed(1)}% total bonus</div>
+	));
 	return bonus;
 }
 
@@ -214,9 +214,9 @@ export default function Result(props) {
 	const rx = store.useRedux();
 	const { game } = props;
 	const [tooltip, setTip] = createSignal(null);
-	let lefttextref = [],
-		goldrewardref = game.data.goldreward,
-		cardrewardref = game.data.cardreward;
+	const leftext = [];
+	let goldreward = game.data.goldreward,
+		cardreward = game.data.cardreward;
 
 	const player1 = game.byUser(rx.user ? rx.user.name : '');
 
@@ -256,158 +256,146 @@ export default function Result(props) {
 
 	onMount(() => {
 		document.addEventListener('keydown', onkeydown);
-		const level = game.data.level,
-			winner = game.winner === player1.id,
-			lefttext = [
-				<div>{game.countPlies()} plies</div>,
-				<div>{(game.duration / 1000).toFixed(1)} seconds</div>,
-			];
-
-		store.store.dispatch(store.clearChat('Replay'));
-		const { replay } = game;
-		if (
-			replay &&
-			game.data.endurance === undefined &&
-			game.data.quest === undefined
-		) {
-			store.store.dispatch(
-				store.chat(
-					JSON.stringify({
-						date: game.time,
-						seed: game.data.seed,
-						set: game.data.set,
-						players: game.data.players,
-						moves: replay,
-					}),
-					'Replay',
-				),
-			);
-		}
-
-		let streakrate = 0,
-			cardreward = cardrewardref,
-			goldreward = goldrewardref;
-		if (winner) {
-			const wasPvP = game.data.players.every(pd => !pd.ai);
-			if (level !== undefined || wasPvP)
-				sock.userExec('addwin', { pvp: wasPvP });
-			if (level !== undefined) {
-				const foedecks = game.data.players.filter(pd => !pd.user),
-					foedeck = choose(foedecks);
-				if (cardreward === undefined && foedeck) {
-					const foeDeck = etgutil.decodedeck(foedeck.deck);
-					let winnable = foeDeck.filter(code => {
-							const card = game.Cards.Codes[code];
-							return card && card.rarity > 0 && card.rarity < 4;
-						}),
-						cardwon;
-					if (winnable.length) {
-						cardwon = choose(winnable);
-					} else {
-						cardwon = randomcard(
-							Cards,
-							false,
-							x => x.rarity > 0 && x.rarity < 4,
-						);
-					}
-					cardreward =
-						'01' + etgutil.encodeCode(etgutil.asShiny(cardwon, false));
-				}
-				if (goldreward === undefined) {
-					if (level !== undefined) {
-						if (game.data.daily === undefined) {
-							const streak = (props.streakback ?? 0) + 1;
-							if (streak !== rx.user.streak[level]) {
-								sock.userExec('setstreak', {
-									l: level,
-									n: streak,
-								});
-							}
-							streakrate = Math.min((streak200[level] * (streak - 1)) / 200, 1);
-							lefttext.push(
-								<TooltipText
-									tip={streak + ' win streak'}
-									setTip={setTip}
-									clearTip={clearTip}>
-									{(streakrate * 100).toFixed(1)}% streak bonus
-								</TooltipText>,
-							);
-						}
-
-						goldreward = Math.round(
-							userutil.pveCostReward[level * 2 + 1] *
-								(1 + streakrate) *
-								computeBonuses(
-									game,
-									player1,
-									lefttext,
-									streakrate,
-									setTip,
-									clearTip,
-								),
-						);
-					}
-				}
-			}
-			if (goldreward) {
-				sock.userExec('addgold', { g: goldreward });
-			}
-			if (cardreward) {
-				sock.userExec(`add${game.data.quest ? 'bound' : ''}cards`, {
-					c: cardreward,
-				});
-			}
-		}
-		lefttextref = lefttext;
-		goldrewardref = goldreward;
-		cardrewardref = cardreward;
-		if (
-			level !== undefined &&
-			game.data.endurance === undefined &&
-			game.data.colobonus === undefined
-		) {
-			const stats = [
-				level,
-				(player1.foe.data.name || '?').replace(/,/g, ' '),
-				winner ? 'W' : 'L',
-				game.countPlies(),
-				game.duration,
-				player1.hp,
-				player1.maxhp,
-				(goldreward | 0) - (game.data.cost | 0),
-				cardreward || '-',
-				userutil.calcWealth(Cards, cardreward),
-				winner ? (props.streakback ?? 0) + 1 : 0,
-				streakrate,
-			];
-			sock.userEmit('stat', {
-				set: game.data.set,
-				stats: stats,
-				players: game.data.players,
-			});
-			stats[stats.length - 1] = +stats[stats.length - 1].toFixed(3);
-			store.store.dispatch(store.chatMsg(stats.join(), 'Stats'));
-			const { opts } = store.store.getState();
-			if (opts.runcount) {
-				if (opts.runcountcur === opts.runcount) {
-					store.store.dispatch(
-						store.chatMsg(`${opts.runcount} runs completed`, 'System'),
-					);
-					store.store.dispatch(store.setOptTemp('runcountcur', 1));
-				} else {
-					store.store.dispatch(
-						store.setOptTemp('runcountcur', opts.runcountcur + 1),
-					);
-				}
-			}
-		}
 	});
 	onCleanup(() => {
 		document.removeEventListener('keydown', onkeydown);
 	});
 
-	const cardreward = cardrewardref,
-		goldreward = goldrewardref;
+	const level = game.data.level,
+		winner = game.winner === player1.id,
+		lefttext = [
+			() => <div>{game.countPlies()} plies</div>,
+			() => <div>{(game.duration / 1000).toFixed(1)} seconds</div>,
+		];
+
+	store.store.dispatch(store.clearChat('Replay'));
+	const { replay } = game;
+	if (
+		replay &&
+		game.data.endurance === undefined &&
+		game.data.quest === undefined
+	) {
+		store.store.dispatch(
+			store.chat(
+				JSON.stringify({
+					date: game.time,
+					seed: game.data.seed,
+					set: game.data.set,
+					players: game.data.players,
+					moves: replay,
+				}),
+				'Replay',
+			),
+		);
+	}
+
+	let streakrate = 0;
+	if (winner) {
+		const wasPvP = game.data.players.every(pd => !pd.ai);
+		if (level !== undefined || wasPvP) sock.userExec('addwin', { pvp: wasPvP });
+		if (level !== undefined) {
+			const foedecks = game.data.players.filter(pd => !pd.user),
+				foedeck = choose(foedecks);
+			if (cardreward === undefined && foedeck) {
+				const foeDeck = etgutil.decodedeck(foedeck.deck);
+				let winnable = foeDeck.filter(code => {
+						const card = game.Cards.Codes[code];
+						return card && card.rarity > 0 && card.rarity < 4;
+					}),
+					cardwon;
+				if (winnable.length) {
+					cardwon = choose(winnable);
+				} else {
+					cardwon = randomcard(Cards, false, x => x.rarity > 0 && x.rarity < 4);
+				}
+				cardreward = '01' + etgutil.encodeCode(etgutil.asShiny(cardwon, false));
+			}
+			if (goldreward === undefined) {
+				if (level !== undefined) {
+					if (game.data.daily === undefined) {
+						const streak = (props.streakback ?? 0) + 1;
+						if (streak !== rx.user.streak[level]) {
+							sock.userExec('setstreak', {
+								l: level,
+								n: streak,
+							});
+						}
+						streakrate = Math.min((streak200[level] * (streak - 1)) / 200, 1);
+						lefttext.push(() => (
+							<TooltipText
+								tip={streak + ' win streak'}
+								setTip={setTip}
+								clearTip={clearTip}>
+								{(streakrate * 100).toFixed(1)}% streak bonus
+							</TooltipText>
+						));
+					}
+
+					goldreward = Math.round(
+						userutil.pveCostReward[level * 2 + 1] *
+							(1 + streakrate) *
+							computeBonuses(
+								game,
+								player1,
+								lefttext,
+								streakrate,
+								setTip,
+								clearTip,
+							),
+					);
+				}
+			}
+		}
+		if (goldreward) {
+			sock.userExec('addgold', { g: goldreward });
+		}
+		if (cardreward) {
+			sock.userExec(`add${game.data.quest ? 'bound' : ''}cards`, {
+				c: cardreward,
+			});
+		}
+	}
+	if (
+		level !== undefined &&
+		game.data.endurance === undefined &&
+		game.data.colobonus === undefined
+	) {
+		const stats = [
+			level,
+			(player1.foe.data.name || '?').replace(/,/g, ' '),
+			winner ? 'W' : 'L',
+			game.countPlies(),
+			game.duration,
+			player1.hp,
+			player1.maxhp,
+			(goldreward | 0) - (game.data.cost | 0),
+			cardreward || '-',
+			userutil.calcWealth(Cards, cardreward),
+			winner ? (props.streakback ?? 0) + 1 : 0,
+			streakrate,
+		];
+		sock.userEmit('stat', {
+			set: game.data.set,
+			stats: stats,
+			players: game.data.players,
+		});
+		stats[stats.length - 1] = +stats[stats.length - 1].toFixed(3);
+		store.store.dispatch(store.chatMsg(stats.join(), 'Stats'));
+		const { opts } = store.store.getState();
+		if (opts.runcount) {
+			if (opts.runcountcur === opts.runcount) {
+				store.store.dispatch(
+					store.chatMsg(`${opts.runcount} runs completed`, 'System'),
+				);
+				store.store.dispatch(store.setOptTemp('runcountcur', 1));
+			} else {
+				store.store.dispatch(
+					store.setOptTemp('runcountcur', opts.runcountcur + 1),
+				);
+			}
+		}
+	}
+
 	const cards = () => {
 		const cards = [];
 		if (cardreward) {
@@ -441,7 +429,7 @@ export default function Result(props) {
 						<Components.Text
 							text={`${goldreward - (game.data.cost | 0)}$`}
 							style={{
-								textAlign: 'center',
+								'text-align': 'center',
 								width: '900px',
 								position: 'absolute',
 								left: '0px',
@@ -453,7 +441,7 @@ export default function Result(props) {
 					<Components.Text
 						text={game.data.wintext || 'You won!'}
 						style={{
-							textAlign: 'center',
+							'text-align': 'center',
 							width: '700px',
 							position: 'absolute',
 							left: '100px',
@@ -468,7 +456,7 @@ export default function Result(props) {
 					left: '8px',
 					top: '290px',
 				}}>
-				{lefttextref}
+				{lefttext}
 			</span>
 			<div
 				style={{

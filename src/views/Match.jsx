@@ -58,13 +58,7 @@ function svgbg() {
 		<svg
 			width="900"
 			height="600"
-			style={{
-				position: 'absolute',
-				left: '0',
-				top: '0',
-				'z-index': '-8',
-				'pointer-events': 'none',
-			}}>
+			style="position:absolute;left:0;top:0;z-index:-8;pointer-events:none">
 			{redren}
 		</svg>
 	);
@@ -75,14 +69,7 @@ function floodsvg() {
 		<svg
 			width="900"
 			height="600"
-			style={{
-				position: 'absolute',
-				left: '0',
-				top: '0',
-				'z-index': '1',
-				'pointer-events': 'none',
-				opacity: '.4',
-			}}>
+			style="position:absolute;left:0;top:0;z-index:1;pointer-events:none;opacity:.4">
 			<path
 				d="M900 141v317h-700Q162 416 200 375h395Q615 300 595 226h-395Q162 191 200 141"
 				fill="#048"
@@ -361,10 +348,10 @@ function ArrowLine(props) {
 				</marker>
 			</defs>
 			<path
-				markerEnd="url(#h)"
+				marker-end="url(#h)"
 				d={`M${props.x0} ${props.y0}L${props.x1} ${props.y1}`}
 				stroke="#f84"
-				strokeWidth="4"
+				stroke-width="4"
 				opacity="0.7"
 			/>
 		</svg>
@@ -441,275 +428,177 @@ function ThingInst(props) {
 	});
 
 	return (
-		<>
-			{props.game.has_id(props.id) && (
-				<div
-					className={`${
-						obj().type === etg.Spell ? 'inst handinst ' : 'inst '
-					}${tgtclass(props.p1id, obj(), props.targeting)}`}
-					style={{
-						position: 'absolute',
-						left: `${props.pos.x - 32}px`,
-						top: `${props.pos.y - 32}px`,
-						opacity: faceDown()
-							? props.opacity
-							: (obj().isMaterial() ? 1 : 0.7) * props.opacity,
-						color: faceDown() ? undefined : card().upped ? '#000' : '#fff',
-						'z-index': '2',
-						'pointer-events': ~obj().getIndex() ? undefined : 'none',
-					}}
-					onMouseMove={setInfo}
-					onMouseOver={setInfo}
-					onMouseLeave={props.onMouseOut}
-					onClick={[props.onClick, props.id]}>
-					<Switch>
-						<MatchCase when={faceDown()}>
-							<div className="ico cback" style="left:2px;top:2px" />
-						</MatchCase>
-						<MatchCase when={!faceDown()}>
-							<div
-								style={{
-									width: '64px',
-									height: '64px',
-									'background-color': bgcolor(),
-									'pointer-events': 'none',
-								}}>
-								<Show when={!props.lofiArt}>
-									<img
-										className={card.shiny ? 'shiny' : ''}
-										src={`/Cards/${encodeCode(
-											card().code +
-												(asShiny(card().code, false) < 5000 ? 4000 : 0),
-										)}.webp`}
-										style={instimgstyle}
-									/>
-								</Show>
+		<Show when={props.game.has_id(props.id)}>
+			<div
+				className={`${
+					obj().type === etg.Spell ? 'inst handinst ' : 'inst '
+				}${tgtclass(props.p1id, obj(), props.targeting)}`}
+				style={{
+					position: 'absolute',
+					left: `${props.pos.x - 32}px`,
+					top: `${props.pos.y - 32}px`,
+					opacity: faceDown()
+						? props.opacity
+						: (obj().isMaterial() ? 1 : 0.7) * props.opacity,
+					color: faceDown() ? undefined : card().upped ? '#000' : '#fff',
+					'z-index': '2',
+					'pointer-events': ~obj().getIndex() ? undefined : 'none',
+				}}
+				onMouseMove={setInfo}
+				onMouseOver={setInfo}
+				onMouseLeave={props.onMouseOut}
+				onClick={[props.onClick, props.id]}>
+				<Switch>
+					<MatchCase when={faceDown()}>
+						<div className="ico cback" style="left:2px;top:2px" />
+					</MatchCase>
+					<MatchCase when={!faceDown()}>
+						<div
+							style={{
+								width: '64px',
+								height: '64px',
+								'background-color': bgcolor(),
+								'pointer-events': 'none',
+							}}>
+							<Show when={!props.lofiArt}>
+								<img
+									className={card.shiny ? 'shiny' : ''}
+									src={`/Cards/${encodeCode(
+										card().code +
+											(asShiny(card().code, false) < 5000 ? 4000 : 0),
+									)}.webp`}
+									style={instimgstyle}
+								/>
+							</Show>
+							<Show when={!isSpell()}>
+								<Index each={visible}>
+									{(v, k) => (
+										<Show when={v()()}>
+											<div
+												className={`ico s${k}`}
+												style={{
+													position: 'absolute',
+													bottom: '-8px',
+													left: [
+														'32px',
+														'8px',
+														'8px',
+														'0px',
+														'24px',
+														'16px',
+														'8px',
+													][k],
+													opacity: '.6',
+													'z-index': '1',
+												}}
+											/>
+										</Show>
+									)}
+								</Index>
+								<Index each={bordervisible}>
+									{(v, k) => (
+										<Show when={v()()}>
+											<div
+												className={`ico sborder${k}`}
+												style={{
+													position: 'absolute',
+													left: '0',
+													top: '0',
+													width: '64px',
+													height: '64px',
+												}}
+											/>
+										</Show>
+									)}
+								</Index>
+							</Show>
+							<Show when={props.game.game.has_protectonce(props.id)}>
+								<div
+									className="ico protection"
+									style={{
+										position: 'absolute',
+										width: '64px',
+										height: '64px',
+									}}
+								/>
+							</Show>
+							<div style="position:absolute;width:64px">
+								<Components.Text
+									text={memo().topText}
+									icoprefix="se"
+									style={{
+										width: '64px',
+										'white-space': 'nowrap',
+										overflow: 'hidden',
+										'background-color': bgcolor(),
+									}}
+								/>
+								<Components.Text
+									text={memo().statText}
+									icoprefix="se"
+									style={{
+										float: 'right',
+										'background-color': bgcolor(),
+									}}
+								/>
 								<Show when={!isSpell()}>
-									<Index each={visible}>
-										{(v, k) => (
-											<Show when={v()()}>
-												<div
-													className={`ico s${k}`}
-													style={{
-														position: 'absolute',
-														bottom: '-8px',
-														left: [
-															'32px',
-															'8px',
-															'8px',
-															'0px',
-															'24px',
-															'16px',
-															'8px',
-														][k],
-														opacity: '.6',
-														'z-index': '1',
-													}}
-												/>
-											</Show>
-										)}
-									</Index>
-									<Index each={bordervisible}>
-										{(v, k) => (
-											<Show when={v()()}>
-												<div
-													className={`ico sborder${k}`}
-													style={{
-														position: 'absolute',
-														left: '0',
-														top: '0',
-														width: '64px',
-														height: '64px',
-													}}
-												/>
-											</Show>
-										)}
-									</Index>
-								</Show>
-								<Show when={props.game.game.has_protectonce(props.id)}>
-									<div
-										className="ico protection"
+									<Components.Text
+										text={card().name}
+										icoprefix="se"
 										style={{
 											position: 'absolute',
+											top: '54px',
+											height: '10px',
 											width: '64px',
-											height: '64px',
+											overflow: 'hidden',
+											'white-space': 'nowrap',
+											'background-color': bgcolor(),
 										}}
 									/>
 								</Show>
-								<div style="position:absolute;width:64px">
-									<Components.Text
-										text={memo().topText}
-										icoprefix="se"
-										style={{
-											width: '64px',
-											'white-space': 'nowrap',
-											overflow: 'hidden',
-											'background-color': bgcolor(),
-										}}
-									/>
-									<Components.Text
-										text={memo().statText}
-										icoprefix="se"
-										style={{
-											float: 'right',
-											'background-color': bgcolor(),
-										}}
-									/>
-									<Show when={!isSpell()}>
-										<Components.Text
-											text={card().name}
-											icoprefix="se"
-											style={{
-												position: 'absolute',
-												top: '54px',
-												height: '10px',
-												width: '64px',
-												overflow: 'hidden',
-												'white-space': 'nowrap',
-												'background-color': bgcolor(),
-											}}
-										/>
-									</Show>
-								</div>
 							</div>
-						</MatchCase>
-					</Switch>
-				</div>
-			)}
-		</>
+						</div>
+					</MatchCase>
+				</Switch>
+			</div>
+		</Show>
 	);
 }
 
-function thingTweenCompare(prev, next) {
-	return (
-		prev.x === next.x && prev.y === next.y && prev.opacity === next.opacity
-	);
-}
 function Thing(props) {
+	createEffect(() => {
+		props.setIdTrack(props.id, { x: props.pos.x, y: props.pos.y });
+	});
+
 	return (
-		<Tween
-			initial={props.birth.get(props.id)}
-			state={{ id: props.id, opacity: props.opacity, ...props.pos }}
-			compare={thingTweenCompare}
-			proc={props.thingTweenProc}>
-			{pos => (
-				<ThingInst
-					lofiArt={props.lofiArt}
-					game={props.game}
-					id={props.id}
-					p1id={props.p1id}
-					setInfo={props.setInfo}
-					onMouseOut={props.onMouseOut}
-					onClick={props.onClick}
-					targeting={props.targeting}
-					pos={pos}
-					opacity={pos.opacity}
-				/>
-			)}
-		</Tween>
+		<ThingInst
+			lofiArt={props.lofiArt}
+			game={props.game}
+			id={props.id}
+			p1id={props.p1id}
+			setInfo={props.setInfo}
+			onMouseOut={props.onMouseOut}
+			onClick={props.onClick}
+			targeting={props.targeting}
+			pos={props.pos}
+			opacity={props.opacity}
+		/>
 	);
 }
 
 function Things(props) {
-	const state = createMemo(
-		state => {
-			if (
-				props.things.length !== state.things.length ||
-				!props.things.every(id => state.things.has(id))
-			) {
-				const things = new Set(props.things),
-					birth = new Map(state.birth),
-					death = new Map(state.death);
-				for (const id of death.keys()) {
-					if (things.has(id)) {
-						death.delete(id);
-					}
-				}
-				for (const id of things) {
-					if (!state.things.has(id)) {
-						const start = props.startPos.get(id);
-						const pos =
-							start < 0
-								? { x: 103, y: -start === props.p1id ? 551 : 258 }
-								: start
-								? { x: -99, y: -99, ...props.getIdTrack(start) }
-								: ui.tgtToPos(props.game.byId(id), props.p1id);
-						if (pos) {
-							pos.opacity = 0;
-							birth.set(id, pos);
-						}
-					}
-				}
-				for (const id of state.things) {
-					if (!things.has(id) && props.game.has_id(id)) {
-						const endpos = props.endPos.get(id);
-						const pos =
-							endpos < 0
-								? { x: 103, y: -endpos === props.p1id ? 551 : 258 }
-								: props.getIdTrack(endpos ?? id);
-						if (pos) death.set(id, pos);
-					}
-				}
-				return { things, birth, death };
-			} else {
-				return state;
-			}
-		},
-		{
-			things: new Set(props.things),
-			death: new Map(),
-			birth: new Map(),
-		},
-	);
-
-	const thingTweenProc = (ms, prev, next) => {
-		const id = next.id;
-		if (ms > 96 * Math.PI) {
-			if (next.opacity === 0) {
-				state().birth.delete(id);
-				state().death.delete(id);
-			}
-			return next;
-		}
-		const pos = {
-			x: prev.x + (next.x - prev.x) * Math.sin(ms / 192),
-			y: prev.y + (next.y - prev.y) * Math.sin(ms / 192),
-			opacity:
-				prev.opacity + (next.opacity - prev.opacity) * Math.sin(ms / 192),
-		};
-		props.setIdTrack(id, { x: pos.x, y: pos.y });
-		return pos;
-	};
-
 	return (
-		<>
-			<For each={props.things}>
-				{id => (
-					<Thing
-						{...props}
-						birth={state().birth}
-						id={id}
-						thingTweenProc={thingTweenProc}
-						obj={props.game.byId(id)}
-						pos={ui.tgtToPos(props.game.byId(id), props.p1id)}
-						opacity={1}
-					/>
-				)}
-			</For>
-			<For each={state().death.keys()}>
-				{id => (
-					<Thing
-						{...props}
-						birth={state().birth}
-						id={id}
-						thingTweenProc={thingTweenProc}
-						obj={props.game.byId(id)}
-						pos={state().death.get(id)}
-						opacity={0}
-					/>
-				)}
-			</For>
-		</>
+		<For each={props.things}>
+			{id => (
+				<Thing
+					{...props}
+					id={id}
+					obj={props.game.byId(id)}
+					pos={ui.tgtToPos(props.game.byId(id), props.p1id)}
+					opacity={1}
+				/>
+			)}
+		</For>
 	);
 }
 
@@ -747,16 +636,16 @@ function tgtclass(p1id, obj, targeting) {
 function FoePlays(props) {
 	const [line, setLine] = createSignal(null);
 	return (
-		!!props.foeplays && (
-			<>
-				<div
-					style={{
-						position: 'absolute',
-						left: '800px',
-						top: `${540 - props.foeplays.length * 20}px`,
-						'z-index': '6',
-					}}>
-					{props.foeplays.map((play, i) => (
+		<Show when={props.foeplays}>
+			<div
+				style={{
+					position: 'absolute',
+					left: '800px',
+					top: `${540 - props.foeplays.length * 20}px`,
+					'z-index': '6',
+				}}>
+				<For each={props.foeplays}>
+					{play => (
 						<Components.CardImage
 							card={play}
 							onMouseOver={e => {
@@ -765,15 +654,17 @@ function FoePlays(props) {
 								if (play.t) {
 									const line0 = props.getIdTrack(play.c),
 										line1 = props.getIdTrack(play.t);
-									setLine({
-										x0: line0.x,
-										y0: line0.y,
-										x1: line1.x,
-										y1: line1.y,
-									});
-								} else {
-									setLine(null);
+									if (line0 && line1) {
+										setLine({
+											x0: line0.x,
+											y0: line0.y,
+											x1: line1.x,
+											y1: line1.y,
+										});
+										return;
+									}
 								}
+								setLine(null);
 							}}
 							onClick={[props.showGame, play.game]}
 							onMouseOut={() => {
@@ -781,11 +672,13 @@ function FoePlays(props) {
 								setLine(null);
 							}}
 						/>
-					))}
-				</div>
-				{line() && <ArrowLine {...line()} />}
-			</>
-		)
+					)}
+				</For>
+			</div>
+			<Show when={line()}>
+				<ArrowLine {...line()} />
+			</Show>
+		</Show>
 	);
 }
 function hpTweenProc(ms, prev, next) {
@@ -1005,7 +898,7 @@ export default function Match(props) {
 			}
 		}
 		const effects = game.next(cmd);
-		//forceUpdate();
+		forceUpdate();
 		if (
 			!iscmd &&
 			game.data.players.some(pl => pl.user && pl.user !== rx.user.name)
@@ -1500,7 +1393,7 @@ export default function Match(props) {
 				},
 				reloadmoves: ({ moves }) => {
 					store.store.dispatch(
-						store.doNav(Promise.resolve({ default: MatchView }), {
+						store.doNav(Promise.resolve({ default: Match }), {
 							...rx.nav.props,
 							game: game.withMoves(moves),
 							noloss: true,
@@ -1610,7 +1503,10 @@ export default function Match(props) {
 					foeplays={foeplays().get(p2id())}
 					setCard={setCard}
 					clearCard={clearCard}
-					showGame={setTempgame}
+					showGame={game => {
+						setTargeting(null);
+						setTempgame(game);
+					}}
 				/>
 			) : (
 				props.playByPlayMode !== 'disabled' && (
@@ -1626,7 +1522,7 @@ export default function Match(props) {
 			<For each={[0, 1]}>
 				{j => {
 					const pl = () => (j ? player2() : player1()),
-						plpos = ui.tgtToPos(pl(), p1id()),
+						plpos = () => ui.tgtToPos(pl(), p1id()),
 						handOverlay = () =>
 							pl().casts === 0
 								? 12
@@ -1672,8 +1568,8 @@ export default function Match(props) {
 								className={tgtclass(p1id(), pl(), targeting())}
 								style={{
 									position: 'absolute',
-									left: `${plpos.x - 48}px`,
-									top: `${plpos.y - 40}px`,
+									left: `${plpos().x - 48}px`,
+									top: `${plpos().y - 40}px`,
 									width: '96px',
 									height: '80px',
 									border: 'transparent 2px solid',
@@ -1779,48 +1675,39 @@ export default function Match(props) {
 									'pointer-events': 'none',
 								}}
 							/>
-							<Tween
-								state={{ x1: x1(), x2: x2() }}
-								compare={hpTweenCompare}
-								proc={hpTweenProc}>
-								{({ x1, x2 }) => (
-									<>
-										<div
-											style={{
-												'background-color': ui.strcols[etg.Life],
-												position: 'absolute',
-												left: '3px',
-												top: j ? '37px' : '532px',
-												width: `${x1}px`,
-												height: '20px',
-												'pointer-events': 'none',
-												'z-index': '2',
-											}}
-										/>
-										{!cloaked() && expectedDamage() !== 0 && (
-											<div
-												style={{
-													'background-color':
-														ui.strcols[
-															expectedDamage() >= pl().hp
-																? etg.Fire
-																: expectedDamage() > 0
-																? etg.Time
-																: etg.Water
-														],
-													position: 'absolute',
-													left: `${3 + Math.min(x1, x2)}px`,
-													top: j ? '37px' : '532px',
-													width: Math.max(x1, x2) - Math.min(x1, x2) + 'px',
-													height: '20px',
-													'pointer-events': 'none',
-													'z-index': '2',
-												}}
-											/>
-										)}
-									</>
-								)}
-							</Tween>
+							<div
+								style={{
+									'background-color': ui.strcols[etg.Life],
+									position: 'absolute',
+									left: '3px',
+									top: j ? '37px' : '532px',
+									width: `${x1()}px`,
+									height: '20px',
+									'pointer-events': 'none',
+									'z-index': '2',
+								}}
+							/>
+							<Show when={!cloaked() && expectedDamage() !== 0}>
+								<div
+									style={{
+										'background-color':
+											ui.strcols[
+												expectedDamage() >= pl().hp
+													? etg.Fire
+													: expectedDamage() > 0
+													? etg.Time
+													: etg.Water
+											],
+										position: 'absolute',
+										left: `${3 + Math.min(x1(), x2())}px`,
+										top: j ? '37px' : '532px',
+										width: Math.max(x1(), x2()) - Math.min(x1(), x2()) + 'px',
+										height: '20px',
+										'pointer-events': 'none',
+										'z-index': '2',
+									}}
+								/>
+							</Show>
 							<Components.Text
 								text={hptext()}
 								style={{
