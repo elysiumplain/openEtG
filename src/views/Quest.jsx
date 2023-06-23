@@ -74,7 +74,7 @@ export default function QuestView(props) {
 					position: 'absolute',
 					left: '26px',
 					top: '26px',
-					maxWidth: '850px',
+					'max-width': '850px',
 				}}
 			/>
 			{questInfo().selectedQuest?.key && (

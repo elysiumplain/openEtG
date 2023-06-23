@@ -275,18 +275,14 @@ export default function Result(props) {
 		game.data.endurance === undefined &&
 		game.data.quest === undefined
 	) {
-		store.store.dispatch(
-			store.chat(
-				JSON.stringify({
-					date: game.time,
-					seed: game.data.seed,
-					set: game.data.set,
-					players: game.data.players,
-					moves: replay,
-				}),
-				'Replay',
-			),
-		);
+		const replayJson = JSON.stringify({
+			date: game.time,
+			seed: game.data.seed,
+			set: game.data.set,
+			players: game.data.players,
+			moves: replay,
+		});
+		store.store.dispatch(store.chat(() => replayJson, 'Replay'));
 	}
 
 	let streakrate = 0;

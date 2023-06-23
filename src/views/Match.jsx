@@ -226,7 +226,7 @@ function PagedModal(props) {
 				position: 'absolute',
 				left: '450px',
 				top: '300px',
-				maxWidth: '900px',
+				'max-width': '900px',
 				transform: 'translate(-50%,-50%)',
 			}}>
 			<div>

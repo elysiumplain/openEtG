@@ -21,7 +21,7 @@ function PremadePicker({ onClick, onClose }) {
 			className="bgbox"
 			style={{
 				position: 'absolute',
-				zIndex: '10',
+				'z-index': '10',
 				left: '75px',
 				top: '100px',
 				height: '400px',
@@ -44,7 +44,7 @@ function PremadePicker({ onClick, onClose }) {
 				style={{
 					display: 'inline-block',
 					width: '33%',
-					verticalAlign: 'top',
+					'vertical-align': 'top',
 				}}>
 				{mage
 					.filter(x => searchex().test(x[0]))
@@ -56,7 +56,7 @@ function PremadePicker({ onClick, onClose }) {
 				style={{
 					display: 'inline-block',
 					width: '33%',
-					verticalAlign: 'top',
+					'vertical-align': 'top',
 				}}>
 				{demigod
 					.filter(x => searchex().test(x[0]))
@@ -214,7 +214,7 @@ function Group(props) {
 		<div className="bgbox" style={{ width: '300px', 'margin-bottom': '8px' }}>
 			<For each={props.players}>
 				{(pl, i) => (
-					<div style={{ minHeight: '24px' }}>
+					<div style="min-height:24px">
 						<span onClick={() => props.toggleEditing(pl().idx)}>
 							{pl().name || ''} <i>{pl().user || 'AI'}</i>
 							{pl().pending === 2 && '...'}
@@ -224,7 +224,7 @@ function Group(props) {
 								type="button"
 								value="-"
 								className="editbtn"
-								style={{ float: 'right' }}
+								style="float:right"
 								onClick={() => {
 									const players = props.players.slice(),
 										[pl] = players.splice(i, 1);

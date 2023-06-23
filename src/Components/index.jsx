@@ -436,7 +436,7 @@ function CardSelectorColumn(props) {
 					position: 'absolute',
 					left: `${props.x + 100}px`,
 					top: `${props.y}px`,
-					textHeight: '0',
+					'text-height': '0',
 				}}>
 				{memo().countTexts}
 			</div>

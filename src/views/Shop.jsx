@@ -1,4 +1,5 @@
 import { createSignal, onMount } from 'solid-js';
+import { For } from 'solid-js/web';
 
 import * as sock from '../sock.jsx';
 import Cards from '../Cards.js';
@@ -29,6 +30,7 @@ const packdata = [
 
 function PackDisplay(props) {
 	const [hoverCard, setHoverCard] = createSignal(null);
+	const DeckDisplaySetCard = (i, card) => setHoverCard(card);
 	const children = () => {
 		const deck = etgutil.decodedeck(props.cards),
 			dlen = etgutil.decklength(props.cards);
@@ -38,7 +40,7 @@ function PackDisplay(props) {
 				cards={Cards}
 				x={106}
 				deck={deck.slice(0, 50)}
-				onMouseOver={(i, card) => setHoverCard(card)}
+				onMouseOver={DeckDisplaySetCard}
 			/>,
 		);
 		for (let start = 51; start < dlen; start += 70) {
@@ -48,7 +50,7 @@ function PackDisplay(props) {
 					x={-92}
 					y={244 + (((start - 51) / 70) | 0) * 200}
 					deck={deck.slice(start, start + 70)}
-					onMouseOver={(i, card) => setHoverCard(card)}
+					onMouseOver={DeckDisplaySetCard}
 				/>,
 			);
 		}
@@ -63,8 +65,8 @@ function PackDisplay(props) {
 				top: '12px',
 				width: '756px',
 				height: '588px',
-				zIndex: '1',
-				overflowY: 'auto',
+				'z-index': '1',
+				'overflow-y': 'auto',
 			}}>
 			<Components.Card card={hoverCard()} x={8} y={8} />
 			{children}
@@ -224,7 +226,7 @@ export default function Shop() {
 							type="button"
 							value="Max Buy"
 							onClick={() => {
-								const pack = packdata[rarity];
+								const pack = packdata[rarity()];
 								store.store.dispatch(
 									store.setOptTemp(
 										'bulk',
@@ -251,33 +253,35 @@ export default function Shop() {
 					/>
 				</>
 			)}
-			{packdata.map((pack, n) => (
-				<>
-					<img
-						src={`/assets/pack${n}.webp`}
-						className="imgb"
-						onClick={() => {
-							setRarity(n);
-							setInfo2(`${pack.type} Pack: ${pack.info}`);
-						}}
-						style={{
-							position: 'absolute',
-							left: `${48 + 176 * n}px`,
-							top: '278px',
-						}}
-					/>
-					<Components.Text
-						text={pack.cost + '$'}
-						style={{
-							position: 'absolute',
-							left: `${48 + 176 * n}px`,
-							top: '542px',
-							width: '160px',
-							'text-align': 'center',
-						}}
-					/>
-				</>
-			))}
+			<For each={packdata}>
+				{(pack, n) => (
+					<>
+						<img
+							src={`/assets/pack${n()}.webp`}
+							className="imgb"
+							onClick={() => {
+								setRarity(n());
+								setInfo2(`${pack.type} Pack: ${pack.info}`);
+							}}
+							style={{
+								position: 'absolute',
+								left: `${48 + 176 * n()}px`,
+								top: '278px',
+							}}
+						/>
+						<Components.Text
+							text={pack.cost + '$'}
+							style={{
+								position: 'absolute',
+								left: `${48 + 176 * n()}px`,
+								top: '542px',
+								width: '160px',
+								'text-align': 'center',
+							}}
+						/>
+					</>
+				)}
+			</For>
 			{elebuttons}
 			{cards() && <PackDisplay cards={cards()} />}
 			{!hasFreePacks() && !!~ele() && !!~rarity() && (

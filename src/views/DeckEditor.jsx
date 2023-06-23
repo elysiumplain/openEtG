@@ -153,7 +153,7 @@ function DeckSelector(props) {
 				top: '270px',
 				width: '900px',
 				height: '330px',
-				overflowY: 'auto',
+				'overflow-y': 'auto',
 			}}>
 			<input
 				autoFocus

@@ -17,22 +17,10 @@ let socket = new WebSocket(endpoint),
 	attempts = 0,
 	attemptTimeout = 0,
 	pvp = null;
-const guestStyle = {
-	overflow: 'auto',
-	fontStyle: 'italic',
-	color: '#ccc',
-};
-const mode2Style = {
-	overflow: 'auto',
-	color: '#69f',
-};
-const chatStyle = {
-	overflow: 'auto',
-	color: '#ddd',
-};
-const defaultStyle = {
-	overflow: 'auto',
-};
+const guestStyle = 'overflow:auto;font-style:italic;color:#ccc';
+const mode2Style = 'overflow:auto;color:#69f';
+const chatStyle = 'overflow:auto;color:#ddd';
+const defaultStyle = 'overflow:auto';
 const sockEvents = {
 	clear() {
 		store.store.dispatch(store.clearChat('Main'));

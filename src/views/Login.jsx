@@ -65,7 +65,7 @@ if (typeof kongregateAPI === 'undefined') {
 								rel="noopener"
 								href={data.html_url}
 								style={{
-									maxWidth: '670px',
+									'max-width': '670px',
 									position: 'absolute',
 									left: '220px',
 									top: '460px',

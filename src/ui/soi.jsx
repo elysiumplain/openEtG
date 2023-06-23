@@ -79,13 +79,7 @@ function App() {
 
 	return (
 		<>
-			<div
-				style={{
-					display: 'flex',
-					justifyContent: 'space-between',
-				}}>
-				{form}
-			</div>
+			<div style="display:flex;justify-content:space-between">{form}</div>
 			<Text text={info()} style={{ width: '900px' }} />
 		</>
 	);

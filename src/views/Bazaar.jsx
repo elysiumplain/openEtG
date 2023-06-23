@@ -222,7 +222,7 @@ function OrderBook(p) {
 				Mine
 			</label>
 			{p.bz && (
-				<div style={{ columnCount: '3', width: '890px' }}>
+				<div style="column-count:3;width:890px">
 					<OrderSummary
 						username={p.username}
 						bz={p.bz}
