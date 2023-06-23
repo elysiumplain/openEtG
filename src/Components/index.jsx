@@ -473,7 +473,7 @@ export function CardSelectorCore(props) {
 			{(cards, i) => (
 				<CardSelectorColumn
 					{...props}
-					cards={cards}
+					cards={cards()}
 					x={props.x + i * 133}
 					y={props.y}
 				/>

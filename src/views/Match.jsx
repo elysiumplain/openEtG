@@ -1385,7 +1385,6 @@ export default function Match(props) {
 	};
 
 	onMount(() => {
-		console.log('a whole new world');
 		if (!props.replay && !pgame().data.spectate) {
 			document.addEventListener('keydown', onkeydown);
 			window.addEventListener('beforeunload', onbeforeunload);

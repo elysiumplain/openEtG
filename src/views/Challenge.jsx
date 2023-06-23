@@ -212,14 +212,14 @@ function PlayerEditor(props) {
 function Group(props) {
 	return (
 		<div className="bgbox" style={{ width: '300px', 'margin-bottom': '8px' }}>
-			<Index each={props.players}>
+			<For each={props.players}>
 				{(pl, i) => (
 					<div style={{ minHeight: '24px' }}>
-						<span onClick={() => props.toggleEditing(pl.idx)}>
-							{pl.name || ''} <i>{pl.user || 'AI'}</i>
-							{pl.pending === 2 && '...'}
+						<span onClick={() => props.toggleEditing(pl().idx)}>
+							{pl().name || ''} <i>{pl().user || 'AI'}</i>
+							{pl().pending === 2 && '...'}
 						</span>
-						{props.addEditing && pl.user !== props.host && (
+						{props.addEditing && pl().user !== props.host && (
 							<input
 								type="button"
 								value="-"
@@ -233,9 +233,9 @@ function Group(props) {
 								}}
 							/>
 						)}
-						{props.editing.has(pl.idx) && (
+						{props.editing.has(pl().idx) && (
 							<PlayerEditor
-								player={pl}
+								player={pl()}
 								updatePlayer={pl => {
 									const players = props.players.slice(),
 										{ idx } = players[i];
@@ -247,7 +247,7 @@ function Group(props) {
 						)}
 					</div>
 				)}
-			</Index>
+			</For>
 			{props.addEditing && (
 				<div>
 					<input
@@ -454,10 +454,10 @@ export default function Challenge(props) {
 					top: '32px',
 				}}
 			/>
-			<Index each={groups()}>
+			<For each={groups()}>
 				{(players, i) => (
 					<Group
-						players={players}
+						players={players()}
 						host={rx.user.name}
 						hasUserAsPlayer={name =>
 							groups().some(g => g.some(p => p.user === name))
@@ -497,7 +497,7 @@ export default function Challenge(props) {
 						}
 					/>
 				)}
-			</Index>
+			</For>
 			<div style={{ width: '300px' }}>
 				{amhost() && <input type="button" value="+Group" onClick={addGroup} />}
 				{allReady()
