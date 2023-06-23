@@ -1,5 +1,6 @@
 import {
 	batch,
+	untrack,
 	createEffect,
 	createMemo,
 	createSignal,
@@ -160,41 +161,54 @@ function activeText(c) {
 
 function Tween(props) {
 	let start = null,
-		raf = null,
-		prev = props.initial ?? props.state;
-	//const [state, setState] = createSignal(props.initial ?? props.state);
-	const [state, setState] = createSignal(props.state);
-
+		raf = null;
+	const [state, setState] = createSignal(props.initial ?? props.state);
+	let prevState = state(),
+		nextState = props.state;
 	const step = ts => {
 		start ??= ts;
-		const newstate = props.proc(ts - start, prev, props.state);
-		setState(newstate);
-		raf = newstate !== props.state && requestAnimationFrame(step);
+		setState(props.proc(ts - start, prevState, nextState));
+		if (state() !== nextState) {
+			raf &&= requestAnimationFrame(step);
+		}
 	};
-
-	createEffect(prevState => {
-		start = null;
-		prev = prevState;
-		if (raf) cancelAnimationFrame(raf);
-		raf = requestAnimationFrame(step);
-	}, prev);
-
-	return <>{props.children(state())}</>;
+	createEffect(() => {
+		if (!props.compare(nextState, props.state)) {
+			start = null;
+			nextState = props.state;
+			prevState = untrack(state);
+			if (raf) cancelAnimationFrame(raf);
+			raf = requestAnimationFrame(step);
+		}
+	});
+	onCleanup(() => {
+		if (raf) {
+			cancelAnimationFrame(raf);
+			raf = null;
+		}
+	});
+	return props.children(state);
 }
 
-function Animation(props) {
-	const [child, setChild] = createSignal(null);
+function useAnimation() {
+	const [time, setTime] = createSignal(0);
+	let raf = null;
 	onMount(() => {
 		let start = null;
 		const step = ts => {
-			start ??= 0; // ts;
-			const dom = props.proc(ts - start);
-			setChild(dom);
-			if (dom) requestAnimationFrame(step);
+			start ??= ts;
+			setTime(ts - start);
+			raf &&= requestAnimationFrame(step);
 		};
-		requestAnimationFrame(step);
+		raf = requestAnimationFrame(step);
 	});
-	return <>{child}</>;
+	onCleanup(() => {
+		if (raf) {
+			cancelAnimationFrame(raf);
+			raf = null;
+		}
+	});
+	return time;
 }
 
 function PagedModal(props) {
@@ -243,7 +257,11 @@ function PagedModal(props) {
 	);
 }
 
-function LastCard(props) {
+function LastCardFx(props) {
+	const ms = useAnimation();
+	createEffect(() => {
+		if (ms() > 864 * Math.PI) setEffects(removeFx(props.self));
+	});
 	return (
 		<div
 			style={{
@@ -255,7 +273,7 @@ function LastCard(props) {
 				color: '#fff',
 				'background-color': '#000',
 				padding: '18px',
-				opacity: props.opacity,
+				opacity: Math.min(Math.sin(ms() / 864) * 1.25, 1),
 				'z-index': '8',
 				'pointer-events': 'none',
 			}}>
@@ -264,62 +282,179 @@ function LastCard(props) {
 	);
 }
 
-function SpellDisplay(props) {
+function TextFx(props) {
+	const ms = useAnimation();
+	createEffect(() => {
+		if (ms() > 360) {
+			batch(() => {
+				props.setEffects(removeFx(props.self));
+				props.setEffects(state => ({
+					...state,
+					fxTextPos: updateMap(
+						state.fxTextPos,
+						props.id,
+						pos => pos && pos - 16,
+					),
+				}));
+				if (props.onRest) props.setEffects(props.onRest);
+			});
+		}
+	});
+	const yy = () => ms() / 5;
+	const y = () => props.y0 + yy();
+	const fade = () => 1 - Math.tan(yy() / 91);
+	return (
+		<Components.Text
+			text={props.text}
+			style={{
+				position: 'absolute',
+				left: `${props.pos.x}px`,
+				top: `${y()}px`,
+				opacity: `${fade()}`,
+				'z-index': '5',
+				transform: 'translate(-50%,-50%)',
+				'text-align': 'center',
+				'pointer-events': 'none',
+				'text-shadow': '1px 1px 2px #000',
+			}}
+		/>
+	);
+}
+
+function LightningFx(props) {
+	const time = useAnimation();
+	createEffect(() => {
+		if (time() > 128) props.setEffects(removeFx(props.self));
+	});
+	const path = () => {
+		const ms = time();
+		let path = 'M 32 0';
+		for (let i = 1; i < ms; i += 20 * Math.random()) {
+			const r = Math.log(i) * 8;
+			path += ` L ${32 - Math.round(Math.random() * r - r / 2)} ${Math.round(
+				i / 2,
+			)}`;
+		}
+		return path;
+	};
+	return (
+		<svg
+			height="64"
+			width="64"
+			style={{
+				position: 'absolute',
+				left: `${props.pos.x - 32}px`,
+				top: `${props.pos.y - 32}px`,
+				'pointer-events': 'none',
+				'z-index': '4',
+			}}>
+			<path d={path()} stroke="#fff" strokeWidth="2" fill="none" />
+		</svg>
+	);
+}
+
+function BoltFx(props) {
+	const time = useAnimation();
+	createEffect(() => {
+		if (time() > props.duration) props.setEffects(removeFx(props.self));
+	});
+	const circles = () => {
+		const ms = time();
+		const circles = [];
+		for (let i = 0; i < props.bolts; i++) {
+			const r = Math.sin((ms / props.duration) * Math.PI) * (12 + Math.sqrt(i));
+			for (let j = 0; j < 3; j++) {
+				const a = ms / 256 + i / 3 + j * ((Math.PI * 2) / 3);
+				circles.push(() => (
+					<circle
+						cx={64 + Math.cos(a) * (9 + i * 2)}
+						cy={64 + Math.sin(a) * (9 + i * 2)}
+						r={r}
+						fill="url('#g')"
+					/>
+				));
+			}
+		}
+		return circles;
+	};
+	return (
+		<svg
+			height="128"
+			width="128"
+			style={{
+				position: 'absolute',
+				left: `${props.pos.x - 64}px`,
+				top: `${props.pos.y - 64}px`,
+				'pointer-events': 'none',
+				'z-index': '4',
+			}}>
+			<defs>
+				<radialGradient id="g">
+					<stop offset="10%" stop-color={props.upcolor} stop-opacity="1" />
+					<stop offset="60%" stop-color={props.color} stop-opacity="0" />
+				</radialGradient>
+			</defs>
+			{circles}
+		</svg>
+	);
+}
+
+function SpellDisplayChild(props) {
+	const time = useAnimation();
+	const p1 = props.getIdTrack(props.spell.t);
+	const state = createMemo(() => {
+		const ms = time();
+		return ms < 50 * Math.PI
+			? {
+					yc: props.y * Math.sin(ms / 100),
+					opacity: 1 - Math.cos(ms / 100),
+			  }
+			: ms > 1984
+			? { yc: props.y + ms - 1980, opacity: 1 - (ms - 1980) / (600 - props.y) }
+			: { yc: props.y, opacity: 1 };
+	});
+	createEffect(() => {
+		if (state().yc > 600) {
+			props.setSpells(spells => spells.filter(x => x !== props.spell));
+		}
+	});
 	return (
 		<>
-			{props.spells.map(({ id, spell, t }, i) => {
-				const p1 = props.getIdTrack(spell.t);
-				const y = 540 - (props.spells.length - i) * 20;
-				return (
-					<Animation
-						proc={ms => {
-							let yc, opacity;
-							if (ms < 50 * Math.PI) {
-								yc = y * Math.sin(ms / 100);
-								opacity = 1 - Math.cos(ms / 100);
-							} else if (ms > 1984) {
-								yc = y + ms - 1980;
-								opacity = 1 - (ms - 1980) / (600 - y);
-							} else {
-								yc = y;
-								opacity = 1;
-							}
-							if (yc > 600) {
-								props.setSpells(state => ({
-									spellid: state.spellid,
-									spells: state.spells.filter(x => x.id !== id),
-								}));
-								return null;
-							}
-							return () => (
-								<>
-									<Components.CardImage
-										card={spell}
-										style={{
-											position: 'absolute',
-											left: '800px',
-											top: `${yc}px`,
-											opacity: opacity,
-											'z-index': '3',
-											'pointer-events': 'none',
-										}}
-									/>
-									{p1 && props.playByPlayMode !== 'noline' && (
-										<ArrowLine
-											opacity={opacity}
-											x0={800}
-											y0={yc + 10}
-											x1={p1.x}
-											y1={p1.y}
-										/>
-									)}
-								</>
-							);
-						}}
-					/>
-				);
-			})}
+			<Components.CardImage
+				card={props.spell.card}
+				style={{
+					position: 'absolute',
+					left: '800px',
+					top: `${state().yc}px`,
+					opacity: state().opacity,
+					'z-index': '3',
+					'pointer-events': 'none',
+				}}
+			/>
+			<Show when={p1 && props.playByPlayMode !== 'noline'}>
+				<ArrowLine
+					opacity={state().opacity}
+					x0={800}
+					y0={state().yc + 10}
+					x1={p1.x}
+					y1={p1.y}
+				/>
+			</Show>
 		</>
+	);
+}
+
+function SpellDisplay(props) {
+	return (
+		<For each={props.spells}>
+			{(spell, i) => (
+				<SpellDisplayChild
+					{...props}
+					spell={spell}
+					y={untrack(() => 540 - (props.spells.length - i()) * 20)}
+				/>
+			)}
+		</For>
 	);
 }
 
@@ -566,23 +701,34 @@ function ThingInst(props) {
 }
 
 function Thing(props) {
-	createEffect(() => {
-		props.setIdTrack(props.id, { x: props.pos.x, y: props.pos.y });
-	});
-
 	return (
-		<ThingInst
-			lofiArt={props.lofiArt}
-			game={props.game}
-			id={props.id}
-			p1id={props.p1id}
-			setInfo={props.setInfo}
-			onMouseOut={props.onMouseOut}
-			onClick={props.onClick}
-			targeting={props.targeting}
-			pos={props.pos}
-			opacity={props.opacity}
-		/>
+		<Tween
+			state={props.pos}
+			compare={(prev, next) => prev.x === next.x && prev.y === next.y}
+			proc={(ms, prev, next) => {
+				if (ms > 96 * Math.PI) return next;
+				const pos = {
+					x: prev.x + (next.x - prev.x) * Math.sin(ms / 192),
+					y: prev.y + (next.y - prev.y) * Math.sin(ms / 192),
+				};
+				props.setIdTrack(props.id, pos);
+				return pos;
+			}}>
+			{pos => (
+				<ThingInst
+					lofiArt={props.lofiArt}
+					game={props.game}
+					id={props.id}
+					p1id={props.p1id}
+					setInfo={props.setInfo}
+					onMouseOut={props.onMouseOut}
+					onClick={props.onClick}
+					targeting={props.targeting}
+					pos={pos()}
+					opacity={props.opacity}
+				/>
+			)}
+		</Tween>
 	);
 }
 
@@ -692,7 +838,7 @@ function hpTweenCompare(prev, next) {
 	return prev.x1 === next.x1 && prev.x2 === next.x2;
 }
 
-const initialSpells = { spellid: 0, spells: [] };
+const initialSpells = [];
 const initialEffects = {
 	effects: new Set(),
 	startPos: new Map(),
@@ -768,43 +914,14 @@ export default function Match(props) {
 		const y0 = pos.y + offset;
 		const TextEffect = () =>
 			pos && (
-				<Animation
-					proc={ms => {
-						if (ms > 360) {
-							batch(() => {
-								setEffects(removeFx(TextEffect));
-								setEffects(state => ({
-									...state,
-									fxTextPos: updateMap(
-										state.fxTextPos,
-										id,
-										pos => pos && pos - 16,
-									),
-								}));
-								if (onRest) setEffects(onRest);
-							});
-							return null;
-						}
-						const yy = ms / 5,
-							y = y0 + yy,
-							fade = 1 - Math.tan(yy / 91);
-						return () => (
-							<Components.Text
-								text={text}
-								style={{
-									position: 'absolute',
-									left: `${pos.x}px`,
-									top: `${y}px`,
-									opacity: `${fade}`,
-									'z-index': '5',
-									transform: 'translate(-50%,-50%)',
-									'text-align': 'center',
-									'pointer-events': 'none',
-									'text-shadow': '1px 1px 2px #000',
-								}}
-							/>
-						);
-					}}
+				<TextFx
+					setEffects={setEffects}
+					id={id}
+					y0={y0}
+					pos={pos}
+					text={text}
+					onRest={onRest}
+					self={TextEffect}
 				/>
 			);
 		return TextEffect;
@@ -885,15 +1002,7 @@ export default function Match(props) {
 					),
 				);
 				if (cmd.x === 'cast' && iscmd && playByPlayMode !== 'disabled') {
-					setSpells(state => ({
-						spellid: state.spellid + 1,
-						spells: state.spells.concat([
-							{
-								id: state.spellid,
-								spell: play,
-							},
-						]),
-					}));
+					setSpells(spells => spells.concat([play]));
 				}
 			}
 		}
@@ -936,57 +1045,14 @@ export default function Match(props) {
 							bolts = (param >> 8) + 1,
 							duration = 96 + bolts * 32;
 						const BoltEffect = () => (
-							<Animation
-								proc={ms => {
-									if (ms > duration) {
-										setEffects(removeFx(BoltEffect));
-										return null;
-									}
-									const circles = [];
-									for (let i = 0; i < bolts; i++) {
-										const r =
-											Math.sin((ms / duration) * Math.PI) * (12 + Math.sqrt(i));
-										for (let j = 0; j < 3; j++) {
-											const a = ms / 256 + i / 3 + j * ((Math.PI * 2) / 3);
-											circles.push(
-												<circle
-													cx={64 + Math.cos(a) * (9 + i * 2)}
-													cy={64 + Math.sin(a) * (9 + i * 2)}
-													r={r}
-													fill="url('#g')"
-												/>,
-											);
-										}
-									}
-									return () => (
-										<svg
-											height="128"
-											width="128"
-											style={{
-												position: 'absolute',
-												left: `${pos.x - 64}px`,
-												top: `${pos.y - 64}px`,
-												'pointer-events': 'none',
-												'z-index': '4',
-											}}>
-											<defs>
-												<radialGradient id="g">
-													<stop
-														offset="10%"
-														stopColor={upcolor}
-														stopOpacity="1"
-													/>
-													<stop
-														offset="60%"
-														stopColor={color}
-														stopOpacity="0"
-													/>
-												</radialGradient>
-											</defs>
-											{circles}
-										</svg>
-									);
-								}}
+							<BoltFx
+								self={BoltEffect}
+								setEffects={setEffects}
+								duration={duration}
+								bolts={bolts}
+								color={color}
+								upcolor={upcolor}
+								pos={pos}
 							/>
 						);
 						newstate.effects.add(BoltEffect);
@@ -1020,19 +1086,10 @@ export default function Match(props) {
 						newstate.effects ??= new Set(state.effects);
 						const playerName = game.data.players[game.byId(id).getIndex()].name;
 						const LastCardEffect = () => (
-							<Animation
-								proc={ms => {
-									if (ms > 864 * Math.PI) {
-										setEffects(removeFx(LastCardEffect));
-										return null;
-									}
-									return () => (
-										<LastCard
-											opacity={Math.min(Math.sin(ms / 864) * 1.25, 1)}
-											name={playerName}
-										/>
-									);
-								}}
+							<LastCardFx
+								self={LastCardEffect}
+								setEffects={props.setEffects}
+								name={playerName}
 							/>
 						);
 						newstate.effects.add(LastCardEffect);
@@ -1045,41 +1102,10 @@ export default function Match(props) {
 						newstate.effects ??= new Set(state.effects);
 						const pos = getIdTrack(id) ?? { x: -99, y: -99 };
 						const LightningEffect = () => (
-							<Animation
-								proc={ms => {
-									if (ms > 128) {
-										setEffects(removeFx(LightningEffect));
-										return null;
-									}
-									const path = ['M 32 0'];
-									for (let i = 1; i < ms; i += 20 * Math.random()) {
-										const r = Math.log(i) * 8;
-										path.push(
-											` L ${
-												32 - Math.round(Math.random() * r - r / 2)
-											} ${Math.round(i / 2)}`,
-										);
-									}
-									return () => (
-										<svg
-											height="64"
-											width="64"
-											style={{
-												position: 'absolute',
-												left: `${pos.x - 32}px`,
-												top: `${pos.y - 32}px`,
-												'pointer-events': 'none',
-												'z-index': '4',
-											}}>
-											<path
-												d={path.join('')}
-												stroke="#fff"
-												strokeWidth="2"
-												fill="none"
-											/>
-										</svg>
-									);
-								}}
+							<LightningFx
+								pos={pos}
+								setEffects={setEffects}
+								self={LightningEffect}
 							/>
 						);
 						newstate.effects.add(LightningEffect);
@@ -1359,6 +1385,7 @@ export default function Match(props) {
 	};
 
 	onMount(() => {
+		console.log('a whole new world');
 		if (!props.replay && !pgame().data.spectate) {
 			document.addEventListener('keydown', onkeydown);
 			window.addEventListener('beforeunload', onbeforeunload);
@@ -1509,12 +1536,11 @@ export default function Match(props) {
 					}}
 				/>
 			) : (
-				props.playByPlayMode !== 'disabled' && (
+				playByPlayMode !== 'disabled' && (
 					<SpellDisplay
-						playByPlayMode={props.playByPlayMode}
+						playByPlayMode={playByPlayMode}
 						getIdTrack={getIdTrack}
-						game={game()}
-						spells={spells().spells}
+						spells={spells()}
 						setSpells={setSpells}
 					/>
 				)
@@ -1675,39 +1701,51 @@ export default function Match(props) {
 									'pointer-events': 'none',
 								}}
 							/>
-							<div
-								style={{
-									'background-color': ui.strcols[etg.Life],
-									position: 'absolute',
-									left: '3px',
-									top: j ? '37px' : '532px',
-									width: `${x1()}px`,
-									height: '20px',
-									'pointer-events': 'none',
-									'z-index': '2',
-								}}
-							/>
-							<Show when={!cloaked() && expectedDamage() !== 0}>
-								<div
-									style={{
-										'background-color':
-											ui.strcols[
-												expectedDamage() >= pl().hp
-													? etg.Fire
-													: expectedDamage() > 0
-													? etg.Time
-													: etg.Water
-											],
-										position: 'absolute',
-										left: `${3 + Math.min(x1(), x2())}px`,
-										top: j ? '37px' : '532px',
-										width: Math.max(x1(), x2()) - Math.min(x1(), x2()) + 'px',
-										height: '20px',
-										'pointer-events': 'none',
-										'z-index': '2',
-									}}
-								/>
-							</Show>
+							<Tween
+								state={{ x1: x1(), x2: x2() }}
+								proc={hpTweenProc}
+								compare={hpTweenCompare}>
+								{state => (
+									<>
+										<div
+											style={{
+												'background-color': ui.strcols[etg.Life],
+												position: 'absolute',
+												left: '3px',
+												top: j ? '37px' : '532px',
+												width: `${state().x1}px`,
+												height: '20px',
+												'pointer-events': 'none',
+												'z-index': '2',
+											}}
+										/>
+										<Show when={!cloaked() && expectedDamage() !== 0}>
+											<div
+												style={{
+													'background-color':
+														ui.strcols[
+															expectedDamage() >= pl().hp
+																? etg.Fire
+																: expectedDamage() > 0
+																? etg.Time
+																: etg.Water
+														],
+													position: 'absolute',
+													left: `${3 + Math.min(state().x1, state().x2)}px`,
+													top: j ? '37px' : '532px',
+													width:
+														Math.max(state().x1, state().x2) -
+														Math.min(state().x1, state().x2) +
+														'px',
+													height: '20px',
+													'pointer-events': 'none',
+													'z-index': '2',
+												}}
+											/>
+										</Show>
+									</>
+								)}
+							</Tween>
 							<Components.Text
 								text={hptext()}
 								style={{
@@ -1796,7 +1834,7 @@ export default function Match(props) {
 				}}>
 				{texts().turntell}
 			</span>
-			{effects.effects}
+			<For each={Array.from(effects().effects)}>{fx => untrack(fx)}</For>
 			<Components.Card x={734} y={hovery()} card={hovercard()} />
 			<Components.Text className="infobox" icoprefix="te" {...tooltip()} />
 			{!!foeplays().get(p2id())?.length && (
