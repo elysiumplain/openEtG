@@ -161,10 +161,10 @@ function activeText(c) {
 
 function Tween(props) {
 	let start = null,
-		raf = null;
-	const [state, setState] = createSignal(props.initial ?? props.state);
-	let prevState = state(),
+		raf = null,
+		prevState = props.initial ?? props.state,
 		nextState = props.state;
+	const [state, setState] = createSignal(prevState);
 	const step = ts => {
 		start ??= ts;
 		setState(props.proc(ts - start, prevState, nextState));
@@ -187,6 +187,9 @@ function Tween(props) {
 			raf = null;
 		}
 	});
+	if (props.initial) {
+		raf = requestAnimationFrame(step);
+	}
 	return props.children(state);
 }
 
@@ -700,11 +703,16 @@ function ThingInst(props) {
 	);
 }
 
+function thingTweenCompare(prev, next) {
+	return prev.x === next.x && prev.y === next.y;
+}
+
 function Thing(props) {
 	return (
 		<Tween
+			initial={props.pos0}
 			state={props.pos}
-			compare={(prev, next) => prev.x === next.x && prev.y === next.y}
+			compare={thingTweenCompare}
 			proc={(ms, prev, next) => {
 				if (ms > 96 * Math.PI) return next;
 				const pos = {
@@ -733,6 +741,19 @@ function Thing(props) {
 }
 
 function Things(props) {
+	const birth = id =>
+		untrack(() => {
+			const start = props.startPos.get(id);
+			let pos;
+			if (start < 0) {
+				pos = { x: 103, y: -start === props.p1id ? 551 : 258 };
+			} else if (start) {
+				pos = { x: -99, y: -99, ...props.getIdTrack(start) };
+			} else {
+				pos = ui.tgtToPos(props.game.byId(id), props.p1id);
+			}
+			return { opacity: 0, ...pos };
+		});
 	return (
 		<For each={props.things}>
 			{id => (
@@ -740,6 +761,7 @@ function Things(props) {
 					{...props}
 					id={id}
 					obj={props.game.byId(id)}
+					pos0={birth(id)}
 					pos={ui.tgtToPos(props.game.byId(id), props.p1id)}
 					opacity={1}
 				/>
@@ -958,189 +980,195 @@ export default function Match(props) {
 		newstate.effects.add(newentry.dom);
 	};
 
-	const applyNext = (cmd, iscmd) => {
-		const { game } = props,
-			{ turn } = game,
-			prehash = iscmd || game.hash();
-		if (cmd.x === 'cast' || cmd.x === 'end') {
-			let play;
-			if (cmd.x === 'cast') {
-				const c = game.byId(cmd.c),
-					isSpell = c.type === etg.Spell;
-				play = {
-					card: c.card,
-					element: c.card.element,
-					costele: isSpell ? c.costele : c.castele,
-					cost: isSpell ? c.cost : c.cast,
-					name: isSpell ? c.card.name : skillName(c, c.getSkill('cast')),
-					upped: c.card.upped,
-					shiny: c.card.shiny,
-					c: cmd.c,
-					t: cmd.t,
-					game: game.clone(),
-				};
-			} else {
-				play = {
-					card: null,
-					element: 0,
-					costele: 0,
-					cost: 0,
-					name: 'endturn',
-					upped: false,
-					shiny: false,
-					c: 0,
-					t: 0,
-					game: game.clone(),
-				};
-			}
-			const c = cmd.x === 'cast' && cmd.c && game.byId(cmd.c);
-			if (!c || c.ownerId === p1id() || !c.owner.isCloaked()) {
-				setFoeplays(foeplays =>
-					new Map(foeplays).set(
-						turn,
-						(foeplays.get(turn) ?? []).concat([play]),
-					),
-				);
-				if (cmd.x === 'cast' && iscmd && playByPlayMode !== 'disabled') {
-					setSpells(spells => spells.concat([play]));
+	const applyNext = (cmd, iscmd) =>
+		batch(() => {
+			const { game } = props,
+				{ turn } = game,
+				prehash = iscmd || game.hash();
+			if (cmd.x === 'cast' || cmd.x === 'end') {
+				let play;
+				if (cmd.x === 'cast') {
+					const c = game.byId(cmd.c),
+						isSpell = c.type === etg.Spell;
+					play = {
+						card: c.card,
+						element: c.card.element,
+						costele: isSpell ? c.costele : c.castele,
+						cost: isSpell ? c.cost : c.cast,
+						name: isSpell ? c.card.name : skillName(c, c.getSkill('cast')),
+						upped: c.card.upped,
+						shiny: c.card.shiny,
+						c: cmd.c,
+						t: cmd.t,
+						game: game.clone(),
+					};
+				} else {
+					play = {
+						card: null,
+						element: 0,
+						costele: 0,
+						cost: 0,
+						name: 'endturn',
+						upped: false,
+						shiny: false,
+						c: 0,
+						t: 0,
+						game: game.clone(),
+					};
+				}
+				const c = cmd.x === 'cast' && cmd.c && game.byId(cmd.c);
+				if (!c || c.ownerId === p1id() || !c.owner.isCloaked()) {
+					setFoeplays(foeplays =>
+						new Map(foeplays).set(
+							turn,
+							(foeplays.get(turn) ?? []).concat([play]),
+						),
+					);
+					if (cmd.x === 'cast' && iscmd && playByPlayMode !== 'disabled') {
+						setSpells(spells => spells.concat([play]));
+					}
 				}
 			}
-		}
-		const effects = game.next(cmd);
-		forceUpdate();
-		if (
-			!iscmd &&
-			game.data.players.some(pl => pl.user && pl.user !== rx.user.name)
-		) {
-			sock.userEmit('move', {
-				id: props.gameid,
-				prehash,
-				hash: game.hash(),
-				cmd,
+			const effects = game.next(cmd);
+			forceUpdate();
+			if (
+				!iscmd &&
+				game.data.players.some(pl => pl.user && pl.user !== rx.user.name)
+			) {
+				sock.userEmit('move', {
+					id: props.gameid,
+					prehash,
+					hash: game.hash(),
+					cmd,
+				});
+			}
+			gameStep(game);
+			setEffects(state => {
+				const newstate = {};
+				for (let idx = 0; idx < effects.length; idx += 3) {
+					const kind = enums.Fx[effects[idx]],
+						id = effects[idx + 1],
+						param = effects[idx + 2];
+					switch (kind) {
+						case 'StartPos':
+							newstate.startPos ??= new Map(state.startPos);
+							newstate.startPos.set(id, param);
+							break;
+						case 'EndPos':
+							newstate.startPos ??= new Map(state.startPos);
+							newstate.endPos ??= new Map(state.endPos);
+							newstate.startPos.delete(id);
+							newstate.endPos.set(id, param);
+							break;
+						case 'Bolt': {
+							newstate.effects ??= new Set(state.effects);
+							const pos = getIdTrack(id) ?? { x: -99, y: -99 },
+								color = ui.strcols[param & 255],
+								upcolor = ui.strcols[(param & 255) + 13],
+								bolts = (param >> 8) + 1,
+								duration = 96 + bolts * 32;
+							const BoltEffect = () => (
+								<BoltFx
+									self={BoltEffect}
+									setEffects={setEffects}
+									duration={duration}
+									bolts={bolts}
+									color={color}
+									upcolor={upcolor}
+									pos={pos}
+								/>
+							);
+							newstate.effects.add(BoltEffect);
+							break;
+						}
+						case 'Card':
+							newstate.effects ??= new Set(state.effects);
+							newstate.effects.add(
+								Text(state, newstate, id, game.Cards.Codes[param].name),
+							);
+							break;
+						case 'Poison':
+							newstate.effects ??= new Set(state.effects);
+							newstate.effects.add(
+								Text(state, newstate, id, `Poison ${param}`),
+							);
+							break;
+						case 'Delay':
+							newstate.effects ??= new Set(state.effects);
+							newstate.effects.add(Text(state, newstate, id, `Delay ${param}`));
+							break;
+						case 'Freeze':
+							newstate.effects ??= new Set(state.effects);
+							newstate.effects.add(
+								Text(state, newstate, id, `Freeze ${param}`),
+							);
+							break;
+						case 'Dmg':
+							StatChange(state, newstate, id, -param, 0);
+							break;
+						case 'Atk':
+							StatChange(state, newstate, id, 0, param);
+							break;
+						case 'LastCard':
+							newstate.effects ??= new Set(state.effects);
+							const playerName =
+								game.data.players[game.byId(id).getIndex()].name;
+							const LastCardEffect = () => (
+								<LastCardFx
+									self={LastCardEffect}
+									setEffects={props.setEffects}
+									name={playerName}
+								/>
+							);
+							newstate.effects.add(LastCardEffect);
+							break;
+						case 'Heal':
+							newstate.effects ??= new Set(state.effects);
+							newstate.effects.add(Text(state, newstate, id, `+${param}`));
+							break;
+						case 'Lightning': {
+							newstate.effects ??= new Set(state.effects);
+							const pos = getIdTrack(id) ?? { x: -99, y: -99 };
+							const LightningEffect = () => (
+								<LightningFx
+									pos={pos}
+									setEffects={setEffects}
+									self={LightningEffect}
+								/>
+							);
+							newstate.effects.add(LightningEffect);
+							break;
+						}
+						case 'Lives':
+							newstate.effects ??= new Set(state.effects);
+							newstate.effects.add(Text(state, newstate, id, `${param} lives`));
+							break;
+						case 'Quanta':
+							newstate.effects ??= new Set(state.effects);
+							newstate.effects.add(
+								Text(state, newstate, id, `${param >> 8}:${param & 255}`),
+							);
+							break;
+						case 'Sfx':
+							playSound(wasm.Sfx[param]);
+							break;
+						default:
+							newstate.effects ??= new Set(state.effects);
+							newstate.effects.add(Text(state, newstate, id, kind));
+							break;
+					}
+				}
+				return { ...state, ...newstate };
 			});
-		}
-		gameStep(game);
-		setEffects(state => {
-			const newstate = {};
-			for (let idx = 0; idx < effects.length; idx += 3) {
-				const kind = enums.Fx[effects[idx]],
-					id = effects[idx + 1],
-					param = effects[idx + 2];
-				switch (kind) {
-					case 'StartPos':
-						newstate.startPos ??= new Map(state.startPos);
-						newstate.startPos.set(id, param);
-						break;
-					case 'EndPos':
-						newstate.startPos ??= new Map(state.startPos);
-						newstate.endPos ??= new Map(state.endPos);
-						newstate.startPos.delete(id);
-						newstate.endPos.set(id, param);
-						break;
-					case 'Bolt': {
-						newstate.effects ??= new Set(state.effects);
-						const pos = getIdTrack(id) ?? { x: -99, y: -99 },
-							color = ui.strcols[param & 255],
-							upcolor = ui.strcols[(param & 255) + 13],
-							bolts = (param >> 8) + 1,
-							duration = 96 + bolts * 32;
-						const BoltEffect = () => (
-							<BoltFx
-								self={BoltEffect}
-								setEffects={setEffects}
-								duration={duration}
-								bolts={bolts}
-								color={color}
-								upcolor={upcolor}
-								pos={pos}
-							/>
-						);
-						newstate.effects.add(BoltEffect);
-						break;
-					}
-					case 'Card':
-						newstate.effects ??= new Set(state.effects);
-						newstate.effects.add(
-							Text(state, newstate, id, game.Cards.Codes[param].name),
-						);
-						break;
-					case 'Poison':
-						newstate.effects ??= new Set(state.effects);
-						newstate.effects.add(Text(state, newstate, id, `Poison ${param}`));
-						break;
-					case 'Delay':
-						newstate.effects ??= new Set(state.effects);
-						newstate.effects.add(Text(state, newstate, id, `Delay ${param}`));
-						break;
-					case 'Freeze':
-						newstate.effects ??= new Set(state.effects);
-						newstate.effects.add(Text(state, newstate, id, `Freeze ${param}`));
-						break;
-					case 'Dmg':
-						StatChange(state, newstate, id, -param, 0);
-						break;
-					case 'Atk':
-						StatChange(state, newstate, id, 0, param);
-						break;
-					case 'LastCard':
-						newstate.effects ??= new Set(state.effects);
-						const playerName = game.data.players[game.byId(id).getIndex()].name;
-						const LastCardEffect = () => (
-							<LastCardFx
-								self={LastCardEffect}
-								setEffects={props.setEffects}
-								name={playerName}
-							/>
-						);
-						newstate.effects.add(LastCardEffect);
-						break;
-					case 'Heal':
-						newstate.effects ??= new Set(state.effects);
-						newstate.effects.add(Text(state, newstate, id, `+${param}`));
-						break;
-					case 'Lightning': {
-						newstate.effects ??= new Set(state.effects);
-						const pos = getIdTrack(id) ?? { x: -99, y: -99 };
-						const LightningEffect = () => (
-							<LightningFx
-								pos={pos}
-								setEffects={setEffects}
-								self={LightningEffect}
-							/>
-						);
-						newstate.effects.add(LightningEffect);
-						break;
-					}
-					case 'Lives':
-						newstate.effects ??= new Set(state.effects);
-						newstate.effects.add(Text(state, newstate, id, `${param} lives`));
-						break;
-					case 'Quanta':
-						newstate.effects ??= new Set(state.effects);
-						newstate.effects.add(
-							Text(state, newstate, id, `${param >> 8}:${param & 255}`),
-						);
-						break;
-					case 'Sfx':
-						playSound(wasm.Sfx[param]);
-						break;
-					default:
-						newstate.effects ??= new Set(state.effects);
-						newstate.effects.add(Text(state, newstate, id, kind));
-						break;
+			const newTurn = game.turn;
+			if (newTurn !== turn) {
+				const pl = game.byId(newTurn);
+				if (pl.data.user === rx.user.name) {
+					setPlayer1(newTurn);
 				}
+				setFoeplays(foeplays => new Map(foeplays).set(newTurn, []));
 			}
-			return { ...state, ...newstate };
 		});
-		const newTurn = game.turn;
-		if (newTurn !== turn) {
-			const pl = game.byId(newTurn);
-			if (pl.data.user === rx.user.name) {
-				setPlayer1(newTurn);
-			}
-			setFoeplays(foeplays => new Map(foeplays).set(newTurn, []));
-		}
-	};
 
 	const setReplayIndex = idx => {
 		const history = replayhistory();
@@ -1567,7 +1595,7 @@ export default function Match(props) {
 					const x1 = () => Math.max(Math.round(96 * (pl().hp / pl().maxhp)), 0),
 						x2 = () =>
 							Math.max(
-								x1() - Math.round(96 * (expectedDamage / pl().maxhp)),
+								x1() - Math.round(96 * (expectedDamage() / pl().maxhp)),
 								0,
 							);
 					const poison = () => pl().getStatus('poison'),
@@ -1780,8 +1808,8 @@ export default function Match(props) {
 				}}
 			</For>
 			<Things
-				startPos={effects.startPos}
-				endPos={effects.endPos}
+				startPos={effects().startPos}
+				endPos={effects().endPos}
 				getIdTrack={getIdTrack}
 				setIdTrack={setIdTrack}
 				lofiArt={props.lofiArt}
