@@ -1,6 +1,7 @@
 import {
 	batch,
 	untrack,
+	createComputed,
 	createEffect,
 	createMemo,
 	createSignal,
@@ -576,8 +577,8 @@ function ThingInst(props) {
 					left: `${props.pos.x - 32}px`,
 					top: `${props.pos.y - 32}px`,
 					opacity: faceDown()
-						? props.opacity
-						: (obj().isMaterial() ? 1 : 0.7) * props.opacity,
+						? props.pos.opacity
+						: (obj().isMaterial() ? 1 : 0.7) * props.pos.opacity,
 					color: faceDown() ? undefined : card().upped ? '#000' : '#fff',
 					'z-index': '2',
 					'pointer-events': ~obj().getIndex() ? undefined : 'none',
@@ -714,13 +715,22 @@ function Thing(props) {
 			state={props.pos}
 			compare={thingTweenCompare}
 			proc={(ms, prev, next) => {
-				if (ms > 96 * Math.PI) return next;
+				if (ms > 96 * Math.PI) {
+					if (next.opacity === 0) {
+						props.unregister(props.id);
+					}
+					return next;
+				}
 				const pos = {
 					x: prev.x + (next.x - prev.x) * Math.sin(ms / 192),
 					y: prev.y + (next.y - prev.y) * Math.sin(ms / 192),
 				};
 				props.setIdTrack(props.id, pos);
-				return pos;
+				return {
+					opacity:
+						prev.opacity + (next.opacity - prev.opacity) * Math.sin(ms / 192),
+					...pos,
+				};
 			}}>
 			{pos => (
 				<ThingInst
@@ -733,7 +743,6 @@ function Thing(props) {
 					onClick={props.onClick}
 					targeting={props.targeting}
 					pos={pos()}
-					opacity={props.opacity}
 				/>
 			)}
 		</Tween>
@@ -744,26 +753,57 @@ function Things(props) {
 	const birth = id =>
 		untrack(() => {
 			const start = props.startPos.get(id);
-			let pos;
-			if (start < 0) {
-				pos = { x: 103, y: -start === props.p1id ? 551 : 258 };
-			} else if (start) {
-				pos = { x: -99, y: -99, ...props.getIdTrack(start) };
-			} else {
-				pos = ui.tgtToPos(props.game.byId(id), props.p1id);
-			}
-			return { opacity: 0, ...pos };
+			return start < 0
+				? { opacity: 0, x: 103, y: -start === props.p1id ? 551 : 258 }
+				: start
+				? { opacity: 0, x: -99, y: -99, ...props.getIdTrack(start) }
+				: { opacity: 0, ...ui.tgtToPos(props.game.byId(id), props.p1id) };
 		});
+	let oldthings = new Set(props.things);
+	const death = new Map(),
+		[getDeath, updateDeath] = createSignal(death, { equals: false });
+	const [allthings, setAll] = createSignal(props.things);
+	createComputed(() => {
+		const newthings = new Set(props.things);
+		untrack(() => {
+			let updated = false;
+			for (const id of death.keys()) {
+				if (newthings.has(id)) death.delete(id);
+			}
+			for (const id of oldthings) {
+				if (!newthings.has(id) && props.game.has_id(id)) {
+					const endpos = props.endPos.get(id);
+					const pos =
+						endpos < 0
+							? { x: 103, y: -endpos === props.p1id ? 551 : 258 }
+							: props.getIdTrack(endpos || id);
+					if (pos) {
+						death.set(id, { opacity: 0, ...pos });
+						updated = true;
+					}
+				}
+			}
+			oldthings = newthings;
+			setAll(props.things.concat(Array.from(death.keys())));
+			if (updated) updateDeath(death);
+		});
+	});
+	const unregister = id => death.delete(id);
 	return (
-		<For each={props.things}>
+		<For each={allthings()}>
 			{id => (
 				<Thing
 					{...props}
+					unregister={unregister}
 					id={id}
 					obj={props.game.byId(id)}
 					pos0={birth(id)}
-					pos={ui.tgtToPos(props.game.byId(id), props.p1id)}
-					opacity={1}
+					pos={
+						getDeath().get(id) ?? {
+							opacity: 1,
+							...ui.tgtToPos(props.game.byId(id), props.p1id),
+						}
+					}
 				/>
 			)}
 		</For>
