@@ -359,7 +359,7 @@ function CardSelectorColumn(props) {
 			const y = props.y + j * 19,
 				card = props.cards[j],
 				code = card.code;
-			let opacity = '.5';
+			let opacity = undefined;
 			if (props.cardpool) {
 				const scode = etgutil.asShiny(code, true);
 				const cardAmount = card.isFree()
@@ -371,20 +371,20 @@ function CardSelectorColumn(props) {
 						props.filterboth && props.shiny && scode in props.cardpool
 							? poolCount(props, scode)
 							: 0;
-				if (!props.cardpool || cardAmount !== 0 || shinyAmount !== 0) {
-					opacity = undefined;
-				} else if (card.upped && !card.Cards.Names.Relic) {
-					if (
-						poolCount(props, etgutil.asUpped(code, false)) >=
-						(card.rarity === -1 ? 1 : 6) * (card.upped && card.shiny ? 6 : 1)
-					) {
-						opacity = undefined;
-					} else if (
-						card.rarity === 4 &&
-						poolCount(props, etgutil.asUpped(scode, false)) >= 1
-					) {
-						opacity = undefined;
-					}
+				if (
+					cardAmount === 0 &&
+					shinyAmount === 0 &&
+					!(
+						card.upped &&
+						!card.Cards.Names.Relic &&
+						(poolCount(props, etgutil.asUpped(code, false)) >=
+							(card.rarity === -1 ? 1 : 6) *
+								(card.upped && card.shiny ? 6 : 1) ||
+							(card.rarity === 4 &&
+								poolCount(props, etgutil.asUpped(scode, false)) >= 1))
+					)
+				) {
+					opacity = '.5';
 				}
 				countTexts.push(
 					<div

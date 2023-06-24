@@ -14,7 +14,6 @@ import deckgen from '../deckgen.js';
 const { mage, demigod } = aiDecks;
 function PremadePicker({ onClick, onClose }) {
 	const [search, setSearch] = createSignal('');
-
 	const searchex = createMemo(() => new RegExp(search(), 'i'));
 	return (
 		<div
@@ -43,14 +42,14 @@ function PremadePicker({ onClick, onClose }) {
 			<div style="display:inline-block;width:33%;vertical-align:top">
 				<For each={mage.filter(x => searchex().test(x[0]))}>
 					{([name, deck]) => (
-						<div onClick={[onClick, name, deck, false]}>{name}</div>
+						<div onClick={() => onClick(name, deck, false)}>{name}</div>
 					)}
 				</For>
 			</div>
 			<div style="display:inline-block;width:33%;vertical-align:top">
 				<For each={demigod.filter(x => searchex().test(x[0]))}>
 					{([name, deck]) => (
-						<div onClick={[onClick, name, deck, true]}>{name}</div>
+						<div onClick={() => onClick(name, deck, true)}>{name}</div>
 					)}
 				</For>
 			</div>
@@ -124,7 +123,7 @@ function PlayerEditor(props) {
 							default:
 								newdeck = Promise.resolve(deck());
 						}
-						if (name) data.name = name;
+						if (name()) data.name = name();
 						newdeck.then(x => {
 							data.deck = x;
 							props.updatePlayer(data);
@@ -145,8 +144,8 @@ function PlayerEditor(props) {
 				<div>
 					<input
 						placeholder="Deck"
-						value={deck}
-						onChange={e => setdeck(e.target.value)}
+						value={deck()}
+						onInput={e => setdeck(e.target.value)}
 					/>
 					&emsp;
 					<input
@@ -161,13 +160,13 @@ function PlayerEditor(props) {
 					<input
 						placeholder="Upgrade %"
 						value={rnguprate()}
-						onChange={e => setrnguprate(e.target.value)}
+						onInput={e => setrnguprate(e.target.value)}
 					/>
 					&emsp;
 					<input
 						placeholder="Max Rarity"
 						value={rngmaxrare()}
-						onChange={e => setrngmaxrare(e.target.value)}
+						onInput={e => setrngmaxrare(e.target.value)}
 					/>
 				</div>
 			)}
@@ -175,7 +174,7 @@ function PlayerEditor(props) {
 				<input
 					placeholder="Name"
 					value={name()}
-					onChange={e => setname(e.target.value)}
+					onInput={e => setname(e.target.value)}
 				/>
 			</div>
 			{premade() && (
@@ -205,11 +204,11 @@ function Group(props) {
 			<For each={props.players}>
 				{(pl, i) => (
 					<div style="min-height:24px">
-						<span onClick={() => props.toggleEditing(pl().idx)}>
-							{pl().name || ''} <i>{pl().user || 'AI'}</i>
-							{pl().pending === 2 && '...'}
+						<span onClick={() => props.toggleEditing(pl.idx)}>
+							{pl.name || ''} <i>{pl.user || 'AI'}</i>
+							{pl.pending === 2 && '...'}
 						</span>
-						{props.addEditing && pl().user !== props.host && (
+						{props.addEditing && pl.user !== props.host && (
 							<input
 								type="button"
 								value="-"
@@ -217,19 +216,19 @@ function Group(props) {
 								style="float:right"
 								onClick={() => {
 									const players = props.players.slice(),
-										[pl] = players.splice(i, 1);
+										[pl] = players.splice(i(), 1);
 									props.updatePlayers(players);
 									props.removeEditing(pl.idx);
 								}}
 							/>
 						)}
-						{props.editing.has(pl().idx) && (
+						{props.editing.has(pl.idx) && (
 							<PlayerEditor
-								player={pl()}
+								player={pl}
 								updatePlayer={pl => {
 									const players = props.players.slice(),
-										{ idx } = players[i];
-									players[i] = { ...props.players[i], ...pl };
+										{ idx } = players[i()];
+									players[i()] = { ...props.players[i()], ...pl };
 									props.updatePlayers(players);
 									props.removeEditing(idx);
 								}}
@@ -269,16 +268,16 @@ function toMainMenu() {
 }
 
 export default function Challenge(props) {
-	const rx = store.useRedux(),
-		nextIdx = 2;
+	const rx = store.useRedux();
 
 	const [groups, setGroups] = createSignal(
-		() => props.groups ?? [[{ user: rx.user.name, idx: 1, pending: 1 }], []],
+		props.groups ?? [[{ user: rx.user.name, idx: 1, pending: 1 }], []],
 	);
-	const [editing, setEditing] = createSignal(() => [new Set(), new Set()]);
+	const [editing, setEditing] = createSignal([new Set(), new Set()]);
 	const [replay, setReplay] = createSignal('');
-	const [mydeck, setMyDeck] = createSignal(() => sock.getDeck());
+	const [mydeck, setMyDeck] = createSignal(sock.getDeck());
 
+	let nextIdx = 2;
 	const getNextIdx = () => nextIdx++;
 
 	const playersAsData = deck => {
@@ -394,27 +393,18 @@ export default function Challenge(props) {
 		groups().some(g => g.some(p => p.user && p.user !== rx.user.name));
 	const allReady = () =>
 		amhost() &&
-		(!isMultiplayer || groups().every(g => g.every(p => !p.pending)));
+		(!isMultiplayer() || groups().every(g => g.every(p => !p.pending)));
 
 	return (
 		<>
-			<div
-				style={{
-					position: 'absolute',
-					left: '320px',
-					top: '200px',
-				}}>
+			<div style="position:absolute;left:320px;top:200px">
 				Warning: Lobby feature is still in development
 			</div>
 			{mydata()?.deck && 'You have been assigned a deck'}
 			<input
 				value={mydeck()}
 				onChange={e => setMyDeck(e.target.value)}
-				style={{
-					position: 'absolute',
-					left: '306px',
-					top: '380px',
-				}}
+				style="position:absolute;left:306px;top:380px"
 			/>
 			<Components.DeckDisplay
 				cards={Cards}
@@ -427,52 +417,44 @@ export default function Challenge(props) {
 				type="button"
 				value="Replay"
 				onClick={replayClick}
-				style={{
-					position: 'absolute',
-					left: '540px',
-					top: '8px',
-				}}
+				style="position:absolute;left:540px;top:8px"
 			/>
 			<textarea
 				className="chatinput"
 				placeholder="Replay"
 				value={replay()}
 				onChange={e => setReplay(e.target.value)}
-				style={{
-					position: 'absolute',
-					left: '540px',
-					top: '32px',
-				}}
+				style="position:absolute;left:540px;top:32px"
 			/>
 			<For each={groups()}>
 				{(players, i) => (
 					<Group
-						players={players()}
+						players={players}
 						host={rx.user.name}
 						hasUserAsPlayer={name =>
 							groups().some(g => g.some(p => p.user === name))
 						}
-						updatePlayers={p => updatePlayers(i, p)}
-						removeGroup={i > 0 && (() => removeGroup(i))}
+						updatePlayers={p => updatePlayers(i(), p)}
+						removeGroup={i() > 0 && (() => removeGroup(i()))}
 						getNextIdx={getNextIdx}
-						editing={editing()[i]}
+						editing={editing()[i()]}
 						addEditing={
 							amhost() &&
 							(idx =>
 								setEditing(editing => {
 									const newediting = editing.slice();
-									newediting[i] = new Set(newediting[i]).add(idx);
+									newediting[i()] = new Set(newediting[i()]).add(idx);
 									return newediting;
 								}))
 						}
 						toggleEditing={idx =>
 							setEditing(editing => {
 								const newediting = editing.slice();
-								newediting[i] = new Set(newediting[i]);
-								if (newediting[i].has(idx)) {
-									newediting[i].delete(idx);
+								newediting[i()] = new Set(newediting[i()]);
+								if (newediting[i()].has(idx)) {
+									newediting[i()].delete(idx);
 								} else {
-									newediting[i].add(idx);
+									newediting[i()].add(idx);
 								}
 								return newediting;
 							})
@@ -480,35 +462,30 @@ export default function Challenge(props) {
 						removeEditing={idx =>
 							setEditing(editing => {
 								const newediting = editing.slice();
-								newediting[i] = new Set(newediting[i]);
-								newediting[i].delete(idx);
+								newediting[i()] = new Set(newediting[i()]);
+								newediting[i()].delete(idx);
 								return newediting;
 							})
 						}
 					/>
 				)}
 			</For>
-			<div style={{ width: '300px' }}>
+			<div style="width:300px">
 				{amhost() && <input type="button" value="+Group" onClick={addGroup} />}
-				{allReady()
-					? groups().length > 1 &&
-					  groups().every(x => x.length) &&
-					  editing.every(x => !x.size) && (
-							<input
-								style={{ float: 'right' }}
-								type="button"
-								value="Start"
-								onClick={() => aiClick()}
-							/>
-					  )
-					: null}
+				{allReady() &&
+					groups().length > 1 &&
+					groups().every(x => x.length) &&
+					editing().every(x => !x.size) && (
+						<input
+							style="float:right"
+							type="button"
+							value="Start"
+							onClick={() => aiClick()}
+						/>
+					)}
 			</div>
 			<input
-				style={{
-					position: 'absolute',
-					left: '800px',
-					top: '8px',
-				}}
+				style="position:absolute;left:800px;top:8px"
 				type="button"
 				value="Exit"
 				onClick={toMainMenu}

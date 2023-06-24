@@ -67,6 +67,7 @@ function RenderInfo(props) {
 					top: `${4 + props.y}px`,
 					width: '190px',
 				}}
+				onClick={e => e.target.setSelectionRange(0, 999)}
 				value={adeck ?? ''}
 			/>
 			<span

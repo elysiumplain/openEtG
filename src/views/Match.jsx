@@ -183,6 +183,7 @@ function Tween(props) {
 		}
 	});
 	onCleanup(() => {
+		props.unregister?.();
 		if (raf) {
 			cancelAnimationFrame(raf);
 			raf = null;
@@ -527,7 +528,7 @@ function ThingInst(props) {
 	];
 
 	const memo = createMemo(() => {
-		if (faceDown()) return null;
+		if (faceDown()) return {};
 		let statText, topText;
 		if (!isSpell()) {
 			const charges = obj().getStatus('charges');
@@ -714,11 +715,10 @@ function Thing(props) {
 			initial={props.pos0}
 			state={props.pos}
 			compare={thingTweenCompare}
+			unregister={() => props.unregister(props.id)}
 			proc={(ms, prev, next) => {
 				if (ms > 96 * Math.PI) {
-					if (next.opacity === 0) {
-						props.unregister(props.id);
-					}
+					props.unregister(props.id);
 					return next;
 				}
 				const pos = {
@@ -761,7 +761,8 @@ function Things(props) {
 		});
 	let oldthings = new Set(props.things);
 	const death = new Map(),
-		[getDeath, updateDeath] = createSignal(death, { equals: false });
+		[getDeath, updateDeath] = createSignal(death, { equals: false }),
+		banned = new Set();
 	const [allthings, setAll] = createSignal(props.things);
 	createComputed(() => {
 		const newthings = new Set(props.things);
@@ -771,7 +772,7 @@ function Things(props) {
 				if (newthings.has(id)) death.delete(id);
 			}
 			for (const id of oldthings) {
-				if (!newthings.has(id) && props.game.has_id(id)) {
+				if (!newthings.has(id) && props.game.has_id(id) && !banned.has(id)) {
 					const endpos = props.endPos.get(id);
 					const pos =
 						endpos < 0
@@ -788,7 +789,10 @@ function Things(props) {
 			if (updated) updateDeath(death);
 		});
 	});
-	const unregister = id => death.delete(id);
+	const unregister = id => {
+		banned.add(id);
+		death.delete(id);
+	};
 	return (
 		<For each={allthings()}>
 			{id => (
@@ -1614,7 +1618,7 @@ export default function Match(props) {
 			)}
 			<For each={[0, 1]}>
 				{j => {
-					const pl = () => (j ? player2() : player1()),
+					const pl = j ? player2 : player1,
 						plpos = () => ui.tgtToPos(pl(), p1id()),
 						handOverlay = () =>
 							pl().casts === 0

@@ -31,7 +31,7 @@ function AttrUi(p) {
 								onClick={() =>
 									p.setAttr(attr => ({ ...attr, [name]: attr[name] - incr }))
 								}
-								style={`position:absolute;left:38px;width:14px;top${top}px`}
+								style={`position:absolute;left:38px;width:14px;top:${top}px`}
 							/>
 						)}
 						{p.sumscore + incr * artable[name].cost <= p.arpts && (
@@ -41,7 +41,7 @@ function AttrUi(p) {
 								onClick={() =>
 									p.setAttr(attr => ({ ...attr, [name]: attr[name] + incr }))
 								}
-								style={`position:absolute;left:82px;width:14px;top${top}px`}
+								style={`position:absolute;left:82px;width:14px;top:${top}px`}
 							/>
 						)}
 						<div style={`position:absolute;left:56px;top:${top}px`}>
@@ -89,7 +89,7 @@ export default function ArenaEditor(props) {
 	const [deck, setDeck] = createSignal(adeck);
 	const [mark, setMark] = createSignal(amark);
 	const cardMinus = createMemo(() => {
-		const cardMinus = Cards.filterDeck(deck, pool);
+		const cardMinus = Cards.filterDeck(deck(), pool());
 		cardMinus[props.acard.code] = 5;
 		return cardMinus;
 	});
@@ -128,19 +128,14 @@ export default function ArenaEditor(props) {
 				arpts={arpts}
 				setAttr={setAttr}
 			/>
-			<div
-				style={{
-					position: 'absolute',
-					left: '4px',
-					top: '188px',
-				}}>
-				{(arpts - sumscore) / 20}
+			<div style="position:absolute;left:4px;top:188px">
+				{(arpts - sumscore()) / 20}
 			</div>
 			<input
 				type="button"
 				value="Save & Exit"
 				onClick={() => {
-					if (!Cards.isDeckLegal(deck(), rx.user) || sumscore > arpts) {
+					if (!Cards.isDeckLegal(deck(), rx.user) || sumscore() > arpts) {
 						store.store.dispatch(
 							store.chatMsg(
 								'Invalid deck, 35 cards required before submission',
