@@ -32,7 +32,7 @@ function PremadePicker({ onClick, onClose }) {
 				style={{ display: 'block' }}
 				placeholder="Search"
 				value={search()}
-				onChange={e => setSearch(e.target.value)}
+				onInput={e => setSearch(e.target.value)}
 			/>
 			<input
 				className="floatRight"

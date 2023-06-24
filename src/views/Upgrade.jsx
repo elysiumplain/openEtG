@@ -8,6 +8,8 @@ import * as Components from '../Components/index.jsx';
 
 export default function Upgrade() {
 	const rx = useRedux();
+	const cardpool = createMemo(() => etgutil.deck2pool(rx.user.pool));
+	const boundpool = createMemo(() => etgutil.deck2pool(rx.user.accountbound));
 	const [showBound, setShowBound] = createSignal(false);
 	const [error, setError] = createSignal('');
 	const [state, setState] = createSignal({
@@ -20,9 +22,6 @@ export default function Upgrade() {
 		downgrade: false,
 		downlish: false,
 	});
-
-	const cardpool = createMemo(() => etgutil.deck2pool(rx.user.pool));
-	const boundpool = createMemo(() => etgutil.deck2pool(rx.user.accountbound));
 
 	function upgradeCard(card) {
 		if (!card.isFree()) {
@@ -64,7 +63,9 @@ export default function Upgrade() {
 	}
 	function eventWrap(func) {
 		return () => {
-			const error = state.card1 ? func(state.card1) : 'Pick a card, any card.';
+			const error = state().card1
+				? func(state().card1)
+				: 'Pick a card, any card.';
 			if (error) setError(error);
 		};
 	}
@@ -74,11 +75,11 @@ export default function Upgrade() {
 	return (
 		<>
 			<Components.ExitBtn x={5} y={50} />
-			{state.canGrade && (
+			{state().canGrade && (
 				<input
 					type="button"
-					value={state.downgrade ? 'Downgrade' : 'Upgrade'}
-					onClick={eventWrap(state.downgrade ? downgradeCard : upgradeCard)}
+					value={state().downgrade ? 'Downgrade' : 'Upgrade'}
+					onClick={eventWrap(state().downgrade ? downgradeCard : upgradeCard)}
 					style={{
 						position: 'absolute',
 						left: '150px',
@@ -86,11 +87,11 @@ export default function Upgrade() {
 					}}
 				/>
 			)}
-			{state.canLish && (
+			{state().canLish && (
 				<input
 					type="button"
-					value={state.downlish ? 'Unpolish' : 'Polish'}
-					onClick={eventWrap(state.downlish ? unpolishCard : polishCard)}
+					value={state().downlish ? 'Unpolish' : 'Polish'}
+					onClick={eventWrap(state().downlish ? unpolishCard : polishCard)}
 					style={{
 						position: 'absolute',
 						left: '150px',
@@ -117,7 +118,7 @@ export default function Upgrade() {
 				}}
 			/>
 			<Components.Text
-				text={state.info1}
+				text={state().info1}
 				style={{
 					position: 'absolute',
 					left: '250px',
@@ -125,7 +126,7 @@ export default function Upgrade() {
 				}}
 			/>
 			<Components.Text
-				text={state.info3}
+				text={state().info3}
 				style={{
 					position: 'absolute',
 					left: '250px',
@@ -133,15 +134,15 @@ export default function Upgrade() {
 				}}
 			/>
 			<Components.Text
-				text={error}
+				text={error()}
 				style={{
 					position: 'absolute',
 					left: '100px',
 					top: '170px',
 				}}
 			/>
-			<Components.Card x={534} y={8} card={state.card1} />
-			<Components.Card x={734} y={8} card={state.card2} />
+			<Components.Card x={534} y={8} card={state().card1} />
+			<Components.Card x={734} y={8} card={state().card2} />
 			<input
 				type="button"
 				value="Toggle Bound"
@@ -158,7 +159,7 @@ export default function Upgrade() {
 				maxedIndicator
 				onClick={card => {
 					const newstate = {
-						...state,
+						...state(),
 						card1: card,
 						card2: card.asUpped(true),
 						canGrade: true,

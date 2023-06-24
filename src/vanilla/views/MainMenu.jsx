@@ -177,7 +177,7 @@ export default function OriginalMainMenu() {
 			<input
 				placeholder="Name"
 				value={origfoename()}
-				onChange={e =>
+				onInput={e =>
 					store.store.dispatch(store.setOptTemp('origfoename', e.target.value))
 				}
 				style={{

@@ -174,8 +174,7 @@ export default function MainMenu(props) {
 
 	const [settings, setSettings] = createSignal(false);
 	const [changepass, setChangepass] = createSignal(false);
-	const [newpass, setNewpass] = createSignal(false);
-	const [newpass2, setNewpass2] = createSignal(false);
+	let newpass, newpass2;
 
 	const [tipNumber, setTipNumber] = createSignal(
 			(Math.random() * tipjar.length) | 0,
@@ -250,16 +249,14 @@ export default function MainMenu(props) {
 	};
 
 	const changeFunc = () => {
-		if (newpass() === newpass2()) {
+		if (newpass.value === newpass2.value) {
 			sock.userEmit('passchange', { p: newpass() });
 			setChangepass(false);
-			setNewpass('');
-			setNewpass2('');
 		} else {
-			setNewpass('');
-			setNewpass2('');
 			store.store.dispatch(store.chatMsg('Passwords do not match', 'System'));
 		}
+		newpass.value = '';
+		newpass2.value = '';
 	};
 
 	const leadc = [];
@@ -611,10 +608,10 @@ export default function MainMenu(props) {
 					<input
 						placeholder="Player's Name"
 						value={foename()}
-						onChange={e =>
+						onInput={e =>
 							store.store.dispatch(store.setOptTemp('foename', e.target.value))
 						}
-						style={{ 'margin-left': '24px' }}
+						style="margin-left:24px"
 					/>
 					<input
 						type="button"
@@ -704,8 +701,7 @@ export default function MainMenu(props) {
 							<>
 								<input
 									placeholder="New Password"
-									value={newpass()}
-									onChange={e => setNewpass(e.target.value)}
+									ref={newpass}
 									onKeyPress={e => {
 										if (e.which === 13) changeFunc();
 									}}
@@ -718,8 +714,7 @@ export default function MainMenu(props) {
 								/>
 								<input
 									placeholder="Confirm New"
-									value={newpass2()}
-									onChange={e => setNewpass2(e.target.value)}
+									ref={newpass2}
 									onKeyPress={e => {
 										if (e.which === 13) changeFunc();
 									}}
@@ -746,8 +741,8 @@ export default function MainMenu(props) {
 									value="Cancel Change"
 									onClick={() => {
 										setChangepass(false);
-										setNewpass('');
-										setNewpass2('');
+										newpass.value = '';
+										newpass2.value = '';
 									}}
 									style={{
 										position: 'absolute',

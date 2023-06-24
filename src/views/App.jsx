@@ -1,7 +1,11 @@
 import { useRedux } from '../store.jsx';
-import { Dynamic } from 'solid-js/web';
+import { untrack, createMemo } from 'solid-js';
 
 export default function App(props) {
-	const rx = useRedux();
-	return <Dynamic component={rx.nav.view} {...rx.nav.props} />;
+	const { nav } = useRedux();
+	return createMemo(() => {
+		const view = nav.view;
+		nav.key;
+		return untrack(() => view(nav.props));
+	});
 }

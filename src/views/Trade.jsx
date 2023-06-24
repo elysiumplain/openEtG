@@ -166,12 +166,7 @@ export default function Trade(props) {
 						),
 					)
 				}
-				style={{
-					position: 'absolute',
-					left: '8px',
-					top: '235px',
-					width: '84px',
-				}}
+				style="position:absolute;left:8px;top:235px;width:84px"
 			/>
 			{confirm() === 0 && (
 				<Components.CardSelector

@@ -34,25 +34,13 @@ function PackDisplay(props) {
 	const children = () => {
 		const deck = etgutil.decodedeck(props.cards),
 			dlen = etgutil.decklength(props.cards);
-		const children = [];
-		children.push(
-			<Components.DeckDisplay
-				cards={Cards}
-				x={106}
-				deck={deck.slice(0, 50)}
-				onMouseOver={DeckDisplaySetCard}
-			/>,
-		);
+		const children = [{ x: 106, y: 0, deck: deck.slice(0, 50) }];
 		for (let start = 51; start < dlen; start += 70) {
-			children.push(
-				<Components.DeckDisplay
-					cards={Cards}
-					x={-92}
-					y={244 + (((start - 51) / 70) | 0) * 200}
-					deck={deck.slice(start, start + 70)}
-					onMouseOver={DeckDisplaySetCard}
-				/>,
-			);
+			children.push({
+				x: -92,
+				y: 244 + (((start - 51) / 70) | 0) * 200,
+				deck: deck.slice(start, start + 70),
+			});
 		}
 		return children;
 	};
@@ -69,7 +57,17 @@ function PackDisplay(props) {
 				'overflow-y': 'auto',
 			}}>
 			<Components.Card card={hoverCard()} x={8} y={8} />
-			{children}
+			<For each={children()}>
+				{p => (
+					<Components.DeckDisplay
+						cards={Cards}
+						x={p.x}
+						y={p.y}
+						deck={p.deck}
+						onMouseOver={DeckDisplaySetCard}
+					/>
+				)}
+			</For>
 		</div>
 	);
 }
@@ -111,12 +109,14 @@ export default function Shop() {
 					setBuy(false);
 					store.store.dispatch(
 						store.chat(
-							<a
-								style={{ display: 'block' }}
-								href={`deck/${data.cards}`}
-								target="_blank">
-								{data.cards}
-							</a>,
+							() => (
+								<a
+									style={{ display: 'block' }}
+									href={`deck/${data.cards}`}
+									target="_blank">
+									{data.cards}
+								</a>
+							),
 							'Packs',
 						),
 					);
@@ -295,12 +295,7 @@ export default function Shop() {
 					onKeyPress={e => {
 						if (e.which === 13) buyPack();
 					}}
-					style={{
-						position: 'absolute',
-						top: '184px',
-						left: '777px',
-						width: '64px',
-					}}
+					style="position:absolute;top:184px;left:777px;width:64px"
 				/>
 			)}
 			<Tutor.Tutor x={8} y={500} panels={Tutor.Shop} />

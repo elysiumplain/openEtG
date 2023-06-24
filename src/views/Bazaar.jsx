@@ -302,11 +302,7 @@ export default function Bazaar() {
 				type="button"
 				value="Orders"
 				onClick={() => setShowOrders(showOrders => !showOrders)}
-				style={{
-					position: 'absolute',
-					top: '96px',
-					left: '8px',
-				}}
+				style="position:absolute;top:96px;left:8px;"
 			/>
 			{!!bcard() && bz() && (
 				<>
@@ -321,31 +317,19 @@ export default function Bazaar() {
 									etgutil.encodeCode(bcard().code),
 							});
 						}}
-						style={{
-							position: 'absolute',
-							left: '100px',
-							top: '8px',
-						}}
+						style="position:absolute;left:100px;top:8px"
 					/>
 					<input
 						placeholder="Price"
 						value={sell() || ''}
-						onChange={e => setSell(e.target.value | 0)}
-						style={{
-							position: 'absolute',
-							left: '200px',
-							top: '8px',
-						}}
+						onInput={e => setSell(e.target.value | 0)}
+						style="position:absolute;left:200px;top:8px"
 					/>
 					<input
 						placeholder="Quantity"
 						value={sellq() || ''}
-						onChange={e => setSellq(e.target.value | 0)}
-						style={{
-							position: 'absolute',
-							left: '360px',
-							top: '8px',
-						}}
+						onInput={e => setSellq(e.target.value | 0)}
+						style="position:absolute;left:360px;top:8px"
 					/>
 					{buy() > userutil.sellValue(bcard()) && (
 						<input
@@ -359,39 +343,23 @@ export default function Bazaar() {
 										etgutil.encodeCode(bcard().code),
 								});
 							}}
-							style={{
-								position: 'absolute',
-								left: '100px',
-								top: '40px',
-							}}
+							style="position:absolute;left:100px;top:40px"
 						/>
 					)}
 					<input
 						placeholder="Price"
 						value={buy() || ''}
-						onChange={e => setBuy(e.target.value | 0)}
-						style={{
-							position: 'absolute',
-							left: '200px',
-							top: '40px',
-						}}
+						onInput={e => setBuy(e.target.value | 0)}
+						style="position:absolute;left:200px;top:40px"
 					/>
 					<input
 						placeholder="Quantity"
 						value={buyq() || ''}
-						onChange={e => setBuyq(e.target.value | 0)}
-						style={{
-							position: 'absolute',
-							left: '360px',
-							top: '40px',
-						}}
+						onInput={e => setBuyq(e.target.value | 0)}
+						style="position:absolute;left:360px;top:40px"
 					/>
 					<div
-						style={{
-							position: 'absolute',
-							right: '144px',
-							top: '8px',
-						}}
+						style="position:absolute;right:144px;top:8px"
 						onClick={() => setSell(userutil.sellValue(bcard()))}>
 						Autosell: {userutil.sellValue(bcard())}
 						<span className="ico g" />
@@ -426,11 +394,7 @@ export default function Bazaar() {
 			)}
 			<Components.Text
 				text={rx.user.gold + '$'}
-				style={{
-					position: 'absolute',
-					left: '5px',
-					top: '240px',
-				}}
+				style="position:absolute;left:5px;top:240px"
 			/>
 			<Components.Card x={768} y={8} card={bcard()} />
 			<Components.CardSelector

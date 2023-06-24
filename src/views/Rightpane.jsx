@@ -6,11 +6,11 @@ import * as store from '../store.jsx';
 import parseChat from '../parseChat.js';
 
 function ChannelTab(props) {
-	const rx = useRedux();
+	const { opts } = useRedux();
 
 	return (
 		<span
-			className={rx.opts.channel === props.channel ? 'tabsel' : 'tab'}
+			className={opts.channel === props.channel ? 'tabsel' : 'tab'}
 			onClick={e =>
 				store.store.dispatch(store.setOptTemp('channel', props.channel))
 			}>
@@ -20,10 +20,10 @@ function ChannelTab(props) {
 }
 
 export default function Rightpane(props) {
-	const rx = useRedux();
+	const { opts } = useRedux();
 
 	return (
-		!rx.opts.hideRightpane && (
+		!opts.hideRightpane && (
 			<>
 				<div style={{ 'margin-bottom': '8px' }}>
 					<a href="artcredit.htm" target="_blank">
@@ -44,7 +44,7 @@ export default function Rightpane(props) {
 				<label>
 					<input
 						type="checkbox"
-						checked={rx.opts.offline}
+						checked={opts.offline}
 						onChange={e => {
 							sock.emit({ x: 'chatus', hide: e.target.checked });
 							store.store.dispatch(store.setOpt('offline', e.target.checked));
@@ -55,7 +55,7 @@ export default function Rightpane(props) {
 				<label>
 					<input
 						type="checkbox"
-						checked={rx.opts.afk}
+						checked={opts.afk}
 						onChange={e => {
 							sock.emit({ x: 'chatus', afk: e.target.checked });
 							store.store.dispatch(store.setOptTemp('afk', e.target.checked));
@@ -70,7 +70,7 @@ export default function Rightpane(props) {
 					<ChannelTab channel="Packs" />
 					<ChannelTab channel="Replay" />
 				</div>
-				<Chat channel={rx.opts.channel} />
+				<Chat channel={opts.channel} />
 				<textarea
 					className="chatinput"
 					placeholder="Chat"

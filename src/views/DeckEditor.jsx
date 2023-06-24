@@ -284,7 +284,7 @@ export default function DeckEditor() {
 				deck={deckData().deck}
 				mark={deckData().mark}
 				pool={pool()}
-				cardMinus={cardMinus}
+				cardMinus={cardMinus()}
 				setDeck={deck =>
 					setDeckData({ deck: deck.sort(Cards.codeCmp), mark: deckData().mark })
 				}
@@ -300,7 +300,7 @@ export default function DeckEditor() {
 							deckData().deck.map(code => etgutil.asShiny(code, false)),
 						) + etgutil.toTrueMarkSuffix(deckData().mark)
 					}
-					onChange={e => {
+					onInput={e => {
 						let dcode = e.target.value.trim();
 						if (~dcode.indexOf(' ')) {
 							const dsplit = dcode.split(' ').sort();
