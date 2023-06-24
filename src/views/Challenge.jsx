@@ -29,7 +29,7 @@ function PremadePicker({ onClick, onClose }) {
 				overflow: 'auto',
 			}}>
 			<input
-				style={{ display: 'block' }}
+				style="display:block"
 				placeholder="Search"
 				value={search()}
 				onInput={e => setSearch(e.target.value)}
@@ -40,29 +40,19 @@ function PremadePicker({ onClick, onClose }) {
 				value="Close"
 				onClick={onClose}
 			/>
-			<div
-				style={{
-					display: 'inline-block',
-					width: '33%',
-					'vertical-align': 'top',
-				}}>
-				{mage
-					.filter(x => searchex().test(x[0]))
-					.map(([name, deck]) => (
-						<div onClick={() => onClick(name, deck, false)}>{name}</div>
-					))}
+			<div style="display:inline-block;width:33%;vertical-align:top">
+				<For each={mage.filter(x => searchex().test(x[0]))}>
+					{([name, deck]) => (
+						<div onClick={[onClick, name, deck, false]}>{name}</div>
+					)}
+				</For>
 			</div>
-			<div
-				style={{
-					display: 'inline-block',
-					width: '33%',
-					'vertical-align': 'top',
-				}}>
-				{demigod
-					.filter(x => searchex().test(x[0]))
-					.map(([name, deck]) => (
-						<div onClick={() => onClick(name, deck, true)}>{name}</div>
-					))}
+			<div style="display:inline-block;width:33%;vertical-align:top">
+				<For each={demigod.filter(x => searchex().test(x[0]))}>
+					{([name, deck]) => (
+						<div onClick={[onClick, name, deck, true]}>{name}</div>
+					)}
+				</For>
 			</div>
 		</div>
 	);
@@ -211,7 +201,7 @@ function PlayerEditor(props) {
 
 function Group(props) {
 	return (
-		<div className="bgbox" style={{ width: '300px', 'margin-bottom': '8px' }}>
+		<div className="bgbox" style="width:300px;margin-bottom:8px">
 			<For each={props.players}>
 				{(pl, i) => (
 					<div style="min-height:24px">

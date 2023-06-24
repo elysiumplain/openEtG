@@ -1,4 +1,5 @@
 import { createSignal, onMount } from 'solid-js';
+import { For } from 'solid-js/web';
 
 import Cards from '../Cards.js';
 import * as etgutil from '../etgutil.js';
@@ -96,17 +97,19 @@ export default function Reward(props) {
 					</div>
 				)}
 				{!!props.code && <Components.ExitBtn x={10} y={10} />}
-				{rewardList.map((reward, i) => (
-					<Components.CardImage
-						style={{
-							position: 'absolute',
-							left: `${100 + ((i / 12) | 0) * 108}px`,
-							top: `${272 + (i % 12) * 20}px`,
-						}}
-						card={Cards.Codes[reward]}
-						onClick={() => setChosenReward(reward)}
-					/>
-				))}
+				<For each={rewardList}>
+					{(reward, i) => (
+						<Components.CardImage
+							style={{
+								position: 'absolute',
+								left: `${100 + ((i() / 12) | 0) * 108}px`,
+								top: `${272 + (i() % 12) * 20}px`,
+							}}
+							card={Cards.Codes[reward]}
+							onClick={() => setChosenReward(reward)}
+						/>
+					)}
+				</For>
 				<Components.Card x={233} y={10} card={Cards.Codes[chosenReward()]} />
 			</>
 		)

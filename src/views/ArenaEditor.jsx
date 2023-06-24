@@ -1,4 +1,5 @@
 import { createMemo, createSignal } from 'solid-js';
+import { For } from 'solid-js/web';
 
 import Cards from '../Cards.js';
 import * as etgutil from '../etgutil.js';
@@ -14,63 +15,43 @@ const artable = {
 	draw: { cost: 100 },
 };
 function AttrUi(p) {
-	<>
-		{['hp', 'mark', 'draw'].map((name, y) => {
-			const top = `${128 + y * 20}px`;
-			const { min = 0, incr = 1 } = artable[name];
-			const value = attr[name];
-			return (
-				<>
-					<div
-						style={{
-							position: 'absolute',
-							left: '4px',
-							top,
-						}}>
-						{name}
-					</div>
-					{p.attr[name] - incr >= min && (
-						<input
-							type="button"
-							value="-"
-							onClick={() =>
-								p.setAttr({ ...attr, [name]: p.attr[name] - incr })
-							}
-							style={{
-								position: 'absolute',
-								left: '38px',
-								top,
-								width: '14px',
-							}}
-						/>
-					)}
-					{p.sumscore + incr * artable[name].cost <= p.arpts && (
-						<input
-							type="button"
-							value="+"
-							onClick={() =>
-								p.setAttr({ ...attr(), [name]: p.attr[name] + incr })
-							}
-							style={{
-								position: 'absolute',
-								left: '82px',
-								top,
-								width: '14px',
-							}}
-						/>
-					)}
-					<div
-						style={{
-							position: 'absolute',
-							left: '56px',
-							top,
-						}}>
-						{p.attr[name]}
-					</div>
-				</>
-			);
-		})}
-	</>;
+	return (
+		<For each={['hp', 'mark', 'draw']}>
+			{(name, y) => {
+				const top = 128 + y() * 20;
+				const { min = 0, incr = 1 } = artable[name];
+				const value = p.attr[name];
+				return (
+					<>
+						<div style={`position:absolute;left:4px;top:${top}px`}>{name}</div>
+						{p.attr[name] - incr >= min && (
+							<input
+								type="button"
+								value="-"
+								onClick={() =>
+									p.setAttr(attr => ({ ...attr, [name]: attr[name] - incr }))
+								}
+								style={`position:absolute;left:38px;width:14px;top${top}px`}
+							/>
+						)}
+						{p.sumscore + incr * artable[name].cost <= p.arpts && (
+							<input
+								type="button"
+								value="+"
+								onClick={() =>
+									p.setAttr(attr => ({ ...attr, [name]: attr[name] + incr }))
+								}
+								style={`position:absolute;left:82px;width:14px;top${top}px`}
+							/>
+						)}
+						<div style={`position:absolute;left:56px;top:${top}px`}>
+							{p.attr[name]}
+						</div>
+					</>
+				);
+			}}
+		</For>
+	);
 }
 
 export default function ArenaEditor(props) {

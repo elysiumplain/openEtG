@@ -1,4 +1,5 @@
 import { createSignal } from 'solid-js';
+import { For } from 'solid-js/web';
 import { useRedux } from '../store.jsx';
 import { Text } from './index.jsx';
 
@@ -22,9 +23,11 @@ export function Tutor(props) {
 					/>
 					{tut() && (
 						<div className="tutorialbg">
-							{props.panels.map(([style, text], i) => (
-								<Text className="tutorialbox" text={text} style={style} />
-							))}
+							<For each={props.panels}>
+								{([style, text]) => (
+									<Text className="tutorialbox" text={text} style={style} />
+								)}
+							</For>
 						</div>
 					)}
 				</>
