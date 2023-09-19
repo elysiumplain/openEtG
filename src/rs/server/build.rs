@@ -10,9 +10,6 @@ struct Decks {
 }
 
 fn main() {
-	if std::env::var("SKIPMKRS").map(|s| s == "1").unwrap_or(false) {
-		return;
-	}
 	println!("cargo:rerun-if-changed=../../Decks.json");
 	let decks_json = fs::read_to_string("../../Decks.json").expect("failed to read Decks.json");
 	let decks_data = serde_json::from_str::<Decks>(&decks_json)
