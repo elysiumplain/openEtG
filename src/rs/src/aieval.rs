@@ -22,24 +22,24 @@ impl DamageMap {
 	}
 }
 
-impl Index<i32> for DamageMap {
+impl Index<i16> for DamageMap {
 	type Output = f32;
 
-	fn index(&self, id: i32) -> &f32 {
+	fn index(&self, id: i16) -> &f32 {
 		self.0.index(id as usize)
 	}
 }
 
-impl IndexMut<i32> for DamageMap {
-	fn index_mut(&mut self, id: i32) -> &mut f32 {
+impl IndexMut<i16> for DamageMap {
+	fn index_mut(&mut self, id: i16) -> &mut f32 {
 		self.0.index_mut(id as usize)
 	}
 }
 
-struct QuantaMap(Vec<(i32, [u16; 12])>);
+struct QuantaMap(Vec<(i16, [u16; 12])>);
 
 impl QuantaMap {
-	fn add(quanta: &mut [u16; 12], element: i32, amount: i32) {
+	fn add(quanta: &mut [u16; 12], element: i16, amount: i16) {
 		if element == 0 {
 			let q0 = amount << 8;
 			for q in quanta.iter_mut() {
@@ -59,17 +59,17 @@ impl QuantaMap {
 			let mut quanta = [0u16; 12];
 			QuantaMap::add(
 				&mut quanta,
-				player.mark,
-				(player.markpower as i32) * if player.markpower == 0 { 3 } else { 1 },
+				player.mark as i16,
+				(player.markpower as i16) * if player.markpower == 0 { 3 } else { 1 },
 			);
 			for &id in player.creatures.iter().chain(player.permanents.iter()) {
 				for skill in ctx.getSkill(id, Event::OwnAttack).iter().cloned() {
 					match skill {
 						Skill::quanta(q) => {
-							QuantaMap::add(&mut quanta, q as i32, 1);
+							QuantaMap::add(&mut quanta, q as i16, 1);
 						}
 						Skill::pend => {
-							let element = ctx.get_card(ctx.get(id, Stat::card)).element as i32;
+							let element = ctx.get_card(ctx.get(id, Stat::card)).element as i16;
 							let charges = ctx.get(id, Stat::charges);
 							QuantaMap::add(
 								&mut quanta,
@@ -78,12 +78,12 @@ impl QuantaMap {
 							);
 							QuantaMap::add(
 								&mut quanta,
-								player.mark,
+								player.mark as i16,
 								charges * if player.mark == 0 { 3 } else { 1 } / 2,
 							);
 						}
 						Skill::pillar => {
-							let element = ctx.get_card(ctx.get(id, Stat::card)).element as i32;
+							let element = ctx.get_card(ctx.get(id, Stat::card)).element as i16;
 							let charges = ctx.get(id, Stat::charges);
 							QuantaMap::add(
 								&mut quanta,
@@ -102,7 +102,7 @@ impl QuantaMap {
 							let element = ctx.get(id, Stat::mode);
 							QuantaMap::add(
 								&mut quanta,
-								if element == -1 { player.mark } else { element },
+								if element == -1 { player.mark as i16 } else { element },
 								1,
 							);
 						}
@@ -116,7 +116,7 @@ impl QuantaMap {
 		QuantaMap(v)
 	}
 
-	fn get(&self, id: i32, element: i32) -> u16 {
+	fn get(&self, id: i16, element: i16) -> u16 {
 		self.0
 			.iter()
 			.find(|&&(pl, _)| pl == id)
@@ -137,7 +137,7 @@ impl QuantaMap {
 
 fn eval_skill(
 	ctx: &Game,
-	c: i32,
+	c: i16,
 	skills: &[Skill],
 	ttatk: f32,
 	damage: &DamageMap,
@@ -250,7 +250,7 @@ fn eval_skill(
 						for &cr in player.creatures.iter() {
 							if cr != 0 {
 								score -= 1;
-								let e = ctx.get_card(ctx.get(cr, Stat::card)).element as i32;
+								let e = ctx.get_card(ctx.get(cr, Stat::card)).element as i16;
 								let eidx = (e - 1) as usize;
 								if ctx.hasskill(cr, Event::OwnAttack, Skill::singularity) {
 									score += 256;
@@ -268,7 +268,7 @@ fn eval_skill(
 								continue;
 							}
 							let count = count as u16;
-							let e = idx as i32 + 1;
+							let e = idx as i16 + 1;
 							let q = quantamap.get(pl, e);
 							if q < count {
 								score -= (count - q) as i32 * 16;
@@ -292,7 +292,7 @@ fn eval_skill(
 			Skill::deployblobs => {
 				(8 + if ctx.get_kind(c) == Kind::Spell {
 					let card = ctx.get_card(ctx.get(c, Stat::card));
-					cmp::min(card.attack, card.health) as i32
+					cmp::min(card.attack, card.health) as i16
 				} else {
 					cmp::min(ctx.truehp(c), ctx.truehp(c))
 				}) as f32 / 4.0
@@ -301,7 +301,7 @@ fn eval_skill(
 			Skill::destroycard => 1.0,
 			Skill::devour => {
 				(2 + if ctx.get_kind(c) == Kind::Spell {
-					ctx.get_card(ctx.get(c, Stat::card)).health as i32
+					ctx.get_card(ctx.get(c, Stat::card)).health as i16
 				} else {
 					ctx.truehp(c)
 				}) as f32
@@ -408,7 +408,7 @@ fn eval_skill(
 			Skill::heatmirror => 2.0,
 			Skill::hitownertwice => {
 				(if ctx.get_kind(c) == Kind::Spell {
-					ctx.get_card(ctx.get(c, Stat::card)).attack as i32
+					ctx.get_card(ctx.get(c, Stat::card)).attack as i16
 				} else {
 					ctx.trueatk(c)
 				} * -32) as f32
@@ -483,8 +483,8 @@ fn eval_skill(
 				} else {
 					1.0
 				} + 64.0
-					/ (quantamap.get(owner, ctx.get_player(owner).mark) * 3
-						+ quantamap.get(owner, ctx.get_player(ctx.get_foe(owner)).mark)) as f32)
+					/ (quantamap.get(owner, ctx.get_player(owner).mark as i16) * 3
+						+ quantamap.get(owner, ctx.get_player(ctx.get_foe(owner)).mark as i16)) as f32)
 					.ln()
 			}
 			Skill::pandemonium | Skill::v_pandemonium => 3.0,
@@ -622,7 +622,7 @@ fn eval_skill(
 					if foeshield != 0 {
 						cmp::min(
 							ctx.truedr(foeshield),
-							ctx.get_card(ctx.get(c, Stat::card)).attack as i32,
+							ctx.get_card(ctx.get(c, Stat::card)).attack as i16,
 						) as f32
 					} else {
 						0.5
@@ -710,24 +710,24 @@ fn throttled(s: Skill) -> bool {
 
 fn caneventuallyactive(
 	ctx: &Game,
-	id: i32,
-	cost: i32,
-	costele: i32,
+	id: i16,
+	cost: i16,
+	costele: i16,
 	quantamap: &QuantaMap,
 ) -> bool {
 	let pl = ctx.get_player(id);
 	cost <= 0
 		|| costele == etg::Chroma
-		|| pl.quanta(costele) as i32 >= cost
+		|| pl.quanta(costele) as i16 >= cost
 		|| quantamap.get(id, costele) > 0
 }
 
 #[derive(Clone, Copy)]
 enum WallShield {
-	Chargeblock(i32),
-	Disentro(i32),
-	Dischroma(i32),
-	Voidshell(i32),
+	Chargeblock(i16),
+	Disentro(i16),
+	Dischroma(i16),
+	Voidshell(i16),
 	Evade(f32),
 	Evade100,
 	Weight,
@@ -735,7 +735,7 @@ enum WallShield {
 }
 
 impl WallShield {
-	pub fn dmg(&mut self, ctx: &Game, id: i32, dmg: i32) -> f32 {
+	pub fn dmg(&mut self, ctx: &Game, id: i16, dmg: i16) -> f32 {
 		match *self {
 			WallShield::Chargeblock(ref mut charges) => {
 				if *charges > 0 {
@@ -787,7 +787,7 @@ struct Wall {
 	pub patience: bool,
 }
 
-fn estimate_damage(ctx: &Game, id: i32, freedom: f32, wall: &mut Wall) -> f32 {
+fn estimate_damage(ctx: &Game, id: i16, freedom: f32, wall: &mut Wall) -> f32 {
 	let mut delay = cmp::min(ctx.get(id, Stat::frozen), ctx.get(id, Stat::delayed));
 	if delay != 0 && ctx.get(id, Stat::adrenaline) == 0 {
 		return 0.0;
@@ -807,7 +807,7 @@ fn estimate_damage(ctx: &Game, id: i32, freedom: f32, wall: &mut Wall) -> f32 {
 				})
 					.map(|a| ctx.trueatk_adrenaline(id, a)),
 			)
-			.sum::<i32>() as i16;
+			.sum::<i16>();
 		if ctx.get(owner, Stat::sosa) == 0 {
 			wall.dmg += reflect_dmg
 		} else {
@@ -883,7 +883,7 @@ fn evalthing(
 	ctx: &Game,
 	damage: &DamageMap,
 	quantamap: &QuantaMap,
-	id: i32,
+	id: i16,
 	inhand: bool,
 	flooded: bool,
 	nothrottle: bool,
@@ -958,7 +958,7 @@ fn evalthing(
 			let mut poison = ctx.get(id, Stat::poison);
 			for &sk in ctx.getSkill(id, Event::OwnAttack).iter() {
 				match sk {
-					Skill::growth(_, ghp) => poison = poison.saturating_sub(ghp as i32),
+					Skill::growth(_, ghp) => poison = poison.saturating_sub(ghp as i16),
 					_ => (),
 				}
 			}
@@ -1160,13 +1160,13 @@ pub fn eval(ctx: &Game) -> f32 {
 					Skill::disshield => {
 						if ctx.cardset() == CardSet::Open || !ctx.get(pl, Flag::sanctuary) {
 							wall.shield =
-								Some(WallShield::Disentro(player.quanta(etg::Entropy) as i32));
+								Some(WallShield::Disentro(player.quanta(etg::Entropy) as i16));
 						}
 					}
 					Skill::disfield => {
 						if ctx.cardset() == CardSet::Open || !ctx.get(pl, Flag::sanctuary) {
 							wall.shield = Some(WallShield::Dischroma(
-								player.quanta.iter().map(|&q| q as i32).sum::<i32>(),
+								player.quanta.iter().map(|&q| q as i16).sum::<i16>(),
 							));
 						}
 					}
@@ -1220,7 +1220,7 @@ pub fn eval(ctx: &Game) -> f32 {
 					.iter()
 					.filter(|&&pr| pr != 0 && ctx.hasskill(pr, Event::Attack, Skill::v_freedom))
 					.map(|&pr| ctx.get(pr, Stat::charges))
-					.sum::<i32>(),
+					.sum::<i16>(),
 				4,
 			) as f32 / 4.0
 		};
@@ -1242,8 +1242,8 @@ pub fn eval(ctx: &Game) -> f32 {
 		walls[plidx].dmg = total.min(32000.0).max(-32000.0) as i16;
 	}
 	let wallturn = walls[ctx.getIndex(turn) as usize];
-	if wallturn.dmg as i32 > ctx.get(turnfoe, Stat::hp) {
-		return ((wallturn.dmg as i32 - ctx.get(turnfoe, Stat::hp)) * 999) as f32;
+	if wallturn.dmg > ctx.get(turnfoe, Stat::hp) {
+		return ((wallturn.dmg - ctx.get(turnfoe, Stat::hp)) * 999) as f32;
 	}
 	let flooded = players.iter().any(|&pl| {
 		ctx.get_player(pl)

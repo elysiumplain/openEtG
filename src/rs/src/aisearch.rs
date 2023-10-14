@@ -9,13 +9,13 @@ use crate::card;
 use crate::game::{Flag, Game, GameMove, Kind, Phase, Stat};
 use crate::skill::{Event, Skill, Tgt};
 
-fn has_sopa(ctx: &Game, id: i32) -> bool {
+fn has_sopa(ctx: &Game, id: i16) -> bool {
 	ctx.get_kind(id) == Kind::Permanent
 		&& ctx.hasskill(id, Event::Cast, Skill::die)
 		&& (ctx.hasskill(id, Event::Attack, Skill::patience) || ctx.get(id, Flag::patience))
 }
 
-fn proc_sopa(gclone: &mut Game, turn: i32) {
+fn proc_sopa(gclone: &mut Game, turn: i16) {
 	for &pr in gclone.get_player(turn).permanents.clone().iter() {
 		if pr != 0 && has_sopa(gclone, pr) && gclone.canactive(pr) {
 			gclone.r#move(GameMove::Cast(pr, 0));
@@ -30,7 +30,7 @@ struct Candidate {
 	pub score: f32,
 }
 
-fn get_worst_card(ctx: &Game) -> (i32, f32) {
+fn get_worst_card(ctx: &Game) -> (i16, f32) {
 	if ctx.full_hand(ctx.turn) {
 		ctx.get_player(ctx.turn)
 			.hand
@@ -99,7 +99,7 @@ fn lethal(ctx: &Game) -> Option<GameMove> {
 							id,
 							t,
 							if gclone.winner == turn {
-								i32::MIN
+								i16::MIN
 							} else if gclone.winner == 0 {
 								gclone.get(foe, Stat::hp)
 							} else {
@@ -116,7 +116,7 @@ fn lethal(ctx: &Game) -> Option<GameMove> {
 				let mut gclone = ctx.clone();
 				gclone.r#move(GameMove::Cast(id, 0));
 				if gclone.winner == turn {
-					dmgmoves.push((id, 0, i32::MIN));
+					dmgmoves.push((id, 0, i16::MIN));
 				} else if gclone.winner == 0 {
 					let clonefoehp = gclone.get(foe, Stat::hp);
 					if clonefoehp < foehp {
@@ -156,7 +156,7 @@ fn lethal(ctx: &Game) -> Option<GameMove> {
 				.cloned()
 				.filter(|&id| id != 0)
 				.map(|id| gclone.trueatk(id))
-				.sum::<i32>() > 0
+				.sum::<i16>() > 0
 			{
 				proc_sopa(&mut gclone, turn);
 			}
@@ -169,9 +169,9 @@ fn lethal(ctx: &Game) -> Option<GameMove> {
 	None
 }
 
-fn alltgtsforplayer<F>(ctx: &Game, id: i32, func: &mut F)
+fn alltgtsforplayer<F>(ctx: &Game, id: i16, func: &mut F)
 where
-	F: FnMut(&Game, i32),
+	F: FnMut(&Game, i16),
 {
 	let pl = ctx.get_player(id);
 	for id in once(id)
@@ -189,13 +189,13 @@ where
 
 fn alltgts<F>(ctx: &Game, mut func: F)
 where
-	F: FnMut(&Game, i32),
+	F: FnMut(&Game, i16),
 {
 	alltgtsforplayer(ctx, ctx.turn, &mut func);
 	alltgtsforplayer(ctx, ctx.get_foe(ctx.turn), &mut func);
 }
 
-fn scantgt(ctx: &Game, depth: i32, candy: &mut Candidate, limit: &mut u32, id: i32, tgt: Tgt) {
+fn scantgt(ctx: &Game, depth: i32, candy: &mut Candidate, limit: &mut u32, id: i16, tgt: Tgt) {
 	alltgts(ctx, |ctx, t| {
 		if tgt.full_check(ctx, id, t) {
 			scancore(ctx, depth, candy, limit, GameMove::Cast(id, t));

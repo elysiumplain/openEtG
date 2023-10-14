@@ -241,7 +241,7 @@ fn process_cards(set: &'static str, path: &'static str, source: &mut String, enu
 							source.push(ch);
 						}
 					}
-					write!(source, ":i32={};", code).ok();
+					write!(source, ":i16={};", code).ok();
 				}
 			}
 		}
