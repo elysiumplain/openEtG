@@ -34,6 +34,7 @@ use crate::{now, set_panic_hook};
 pub enum CardSet {
 	Open,
 	Original,
+	Tournament,
 }
 
 #[cfg_attr(target_arch = "wasm32", wasm_bindgen)]
