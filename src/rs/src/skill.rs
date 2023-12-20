@@ -331,8 +331,8 @@ pub enum Skill {
 	earthquake(u8),
 	eatspell,
 	elf,
-	embezzle,
-	embezzledeath,
+	embezzle(i16),
+	embezzledeath(i16),
 	empathy,
 	enchant,
 	endow,
@@ -943,8 +943,8 @@ impl<'a> Display for SkillName<'a> {
 			Skill::earthquake(x) => write!(f, "quake{x}"),
 			Skill::eatspell => f.write_str("eatspell"),
 			Skill::elf => Ok(()),
-			Skill::embezzle => f.write_str("embezzle"),
-			Skill::embezzledeath => f.write_str("embezzledeath"),
+			Skill::embezzle(x) => write!(f, "embezzle {x}"),
+			Skill::embezzledeath(x) => write!(f, "embezzledeath {x}"),
 			Skill::empathy => f.write_str("empathy"),
 			Skill::enchant => f.write_str("enchant"),
 			Skill::endow => f.write_str("endow"),
@@ -1342,7 +1342,7 @@ impl Skill {
 					Tgt::pill
 				}
 			}
-			Self::embezzle => Tgt::crea,
+			Self::embezzle(_) => Tgt::crea,
 			Self::enchant => Tgt::perm,
 			Self::endow => Tgt::weap,
 			Self::envenom => Tgt::weap.mix(Tgt::shie).or(),
@@ -1554,20 +1554,26 @@ impl Skill {
 				if ctx.get_kind(t) != Kind::Player {
 					Skill::destroy.proc(ctx, c, t, data);
 				}
-				let is_open = ctx.cardset() == CardSet::Open;
-				ctx.buffhp(c, 15);
-				if ctx.truehp(c) > 45 {
+				let mut hp_limit = 0;
+				match ctx.cardset() {
+					CardSet::Open => {
+						ctx.buffhp(c, 10);
+						hp_limit += 10*3;
+					},
+					_ => {
+						ctx.buffhp(c, 15);
+						hp_limit += 15*3;
+					}
+				}
+				if ctx.truehp(c) > hp_limit {
 					let owner = ctx.get_owner(c);
-					let card = ctx.get(c, Stat::card);
-					if is_open {
+					if ctx.cardset() == CardSet::Open {
 						ctx.remove(c);
 					} else {
 						ctx.die(c);
 					}
-					ctx.transform(
-						c,
-						card::As(card, if is_open { card::BlackHole } else { card::v_BlackHole }),
-					);
+					let card = ctx.get(c, Stat::card);
+					ctx.transform(c, card::As(card, if ctx.cardset() == CardSet::Open { card::BlackHole } else { card::v_BlackHole }));
 					ctx.addCard(owner, c);
 				}
 			}
@@ -2377,14 +2383,14 @@ impl Skill {
 					data.flags |= ProcData::evade;
 				}
 			}
-			Self::embezzle => {
+			Self::embezzle(amt) => {
 				ctx.fx(t, Fx::Embezzle);
 				ctx.lobo(t);
 				ctx.addskills(t, Event::Hit, &[Skill::forcedraw]);
-				ctx.addskills(t, Event::OwnDeath, &[Skill::embezzledeath]);
+				ctx.addskills(t, Event::OwnDeath, &[Skill::embezzledeath(amt)]);
 			}
-			Self::embezzledeath => {
-				ctx.mill(ctx.get_foe(ctx.get_owner(c)), 1);
+			Self::embezzledeath(amt) => {
+				ctx.mill(ctx.get_foe(ctx.get_owner(c)), amt);
 			}
 			Self::empathy => {
 				let owner = ctx.get_owner(c);
@@ -4330,13 +4336,16 @@ impl Skill {
 					t
 				};
 				ctx.set(t, Stat::casts, 0);
-				let kind = ctx.get_kind(t);
-				if kind == Kind::Permanent {
-					ctx.addPerm(owner, t);
-				} else if kind == Kind::Weapon {
-					ctx.setWeapon(owner, t);
-				} else {
-					ctx.setShield(owner, t);
+				match ctx.get_kind(t) {
+					Kind::Permanent => {
+						ctx.addPerm(owner, t);
+					},
+					Kind::Weapon => {
+						ctx.setWeapon(owner, t);
+					},
+					_ => {
+						ctx.setShield(owner, t);
+					}
 				}
 			}
 			Self::steam => {
