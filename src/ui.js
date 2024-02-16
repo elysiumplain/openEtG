@@ -46,3 +46,25 @@ export const strcols = [
 export function maybeLightenStr(card) {
 	return strcols[card.element + card.upped * 13];
 }
+export const presets = [
+	[
+		'No Shop',
+		['no-shop'].sort(),
+		'Shop is disabled, so no buying packs! Trading is allowed, but only with other No Shop alts.',
+	],
+	[
+		'No Shop Self-found',
+		['no-shop', 'no-trade'].sort(),
+		"Just like No Shop, but trading is also disabled. You're truly limited to what you can win from the AI.",
+	],
+	[
+		'Spins-only Hard',
+		['no-shop', 'no-up-merge', 'hardcore'].sort(),
+		'Shop is disabled, as is upgrading non-pillars. Everytime you lose, you permanently lost a card form your deck. Trading is allowed, but only with other Spins-only Hardcore alts.',
+	],
+	[
+		'Spins-only Self-found Hard',
+		['no-shop', 'no-up-merge', 'no-trade', 'hardcore'].sort(),
+		'Like Spins-only Hard, but trading is also disabled.',
+	],
+];

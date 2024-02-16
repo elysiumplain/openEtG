@@ -1,4 +1,10 @@
-import { createMemo, createSignal, onCleanup, onMount } from 'solid-js';
+import {
+	createMemo,
+	createSignal,
+	createComputed,
+	onCleanup,
+	onMount,
+} from 'solid-js';
 import { Index } from 'solid-js/web';
 
 import Cards from '../Cards.js';
@@ -146,8 +152,8 @@ function DeckSelector(props) {
 				placeholder="Name"
 				value={name()}
 				onInput={e => setName(e.target.value)}
-				onKeyPress={e => {
-					if (e.which === 13 && (e.target.value || props.user.decks[''])) {
+				onKeyDown={e => {
+					if (e.key === 'Enter' && (e.target.value || props.user.decks[''])) {
 						props.loadDeck(e.target.value);
 					}
 				}}
@@ -171,8 +177,9 @@ function DeckSelector(props) {
 						value="Rename"
 						style="position:absolute;left:258px;top:4px"
 						onClick={() => {
-							userExec('rmdeck', { name: props.user.selectedDeck });
+							const del = props.user.selectedDeck;
 							props.saveDeck(name(), true);
+							userExec('rmdeck', { name: del });
 							props.onClose();
 						}}
 					/>
@@ -204,15 +211,16 @@ export default function DeckEditor() {
 		return pool;
 	});
 	let deckref;
-	onMount(() => {
-		deckref.setSelectionRange(0, 999);
-	});
+	onMount(() => deckref.setSelectionRange(0, 999));
 
-	const [deckData, setDeckData] = createSignal(
-		processDeck(rx.user.decks[rx.user.selectedDeck] ?? ''),
+	const [deckData, setDeckData] = createSignal(null);
+	createComputed(() =>
+		setDeckData(processDeck(rx.user.decks[rx.user.selectedDeck] ?? '')),
 	);
+
+	const autoup = () => !store.hasflag(rx.user, 'no-up-merge');
 	const cardMinus = createMemo(() =>
-		Cards.filterDeck(deckData().deck, pool(), true),
+		Cards.filterDeck(deckData().deck, pool(), true, autoup()),
 	);
 
 	const saveDeck = (name, force) => {
@@ -236,12 +244,8 @@ export default function DeckEditor() {
 
 	const onkeydown = e => {
 		if (e.target.tagName === 'TEXTAREA' || e.target.tagName === 'INPUT') return;
-		const kc = e.which,
-			ch = e.key ?? String.fromCharCode(kc),
-			chi = '1234567890'.indexOf(ch);
-		if (~chi) {
-			loadDeck(rx.user.qecks[chi]);
-		}
+		const chi = '1234567890'.indexOf(e.key);
+		if (~chi) loadDeck(rx.user.qecks[chi]);
 	};
 
 	onMount(() => {
@@ -263,10 +267,11 @@ export default function DeckEditor() {
 				mark={deckData().mark}
 				pool={pool()}
 				cardMinus={cardMinus()}
+				autoup={autoup()}
 				setDeck={deck =>
-					setDeckData({ deck: deck.sort(Cards.codeCmp), mark: deckData().mark })
+					setDeckData(data => ({ ...data, deck: deck.sort(Cards.codeCmp) }))
 				}
-				setMark={mark => setDeckData({ deck: deckData().deck, mark })}
+				setMark={mark => setDeckData(data => ({ ...data, mark }))}
 			/>
 			<Tutor.Tutor x={4} y={220} panels={Tutor.Editor} />
 			<label style="position:absolute;left:536px;top:238px">

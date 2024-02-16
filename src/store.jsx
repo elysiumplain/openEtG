@@ -1,9 +1,9 @@
 import { onCleanup } from 'solid-js';
-import { createStore, reconcile } from 'solid-js/store';
+import { createStore } from 'solid-js/store';
 
 import * as usercmd from './usercmd.js';
 import { changeMusic, changeSound } from './audio.js';
-import { mergedecks, removedecks } from './etgutil.js';
+import { iterraw, mergedecks, removedecks } from './etgutil.js';
 
 export const Login =
 	typeof kongregateAPI === 'undefined' ?
@@ -25,6 +25,7 @@ const listeners = new Set();
 export let state = {
 	nav: { view: () => null, props: undefined, key: 0 },
 	opts,
+	alts: {},
 	chat: new Map(),
 	muted: new Set(),
 };
@@ -102,14 +103,49 @@ export function requiresGold(gold) {
 		'System',
 	);
 }
-export function setUser(user) {
-	dispatch({ ...state, user });
+export function setAlt(uname) {
+	const newalts = {
+		...state.alts,
+		[state.uname ?? '']: state.user,
+	};
+	dispatch({ ...state, alts: newalts, user: newalts[uname ?? ''], uname });
+}
+export function addAlt(uname, data) {
+	dispatch({ ...state, alts: { ...state.alts, [uname]: data } });
+}
+export function rmAlt(uname) {
+	const alts = { ...state.alts };
+	delete alts[uname];
+	dispatch({ ...state, alts });
+}
+export function setUser(username, auth, alts) {
+	dispatch({
+		...state,
+		user: alts[''] ?? {},
+		alts,
+		username,
+		auth,
+		uname: null,
+	});
+}
+export function logout() {
+	dispatch({
+		...state,
+		user: null,
+		alts: {},
+		username: null,
+		auth: null,
+		uname: null,
+	});
 }
 export function userCmd(cmd, data) {
 	dispatch({
 		...state,
 		user: { ...state.user, ...usercmd[cmd](data, state.user) },
 	});
+}
+export function setAuth(auth) {
+	dispatch({ ...state, auth });
 }
 export function updateUser(data) {
 	dispatch({ ...state, user: { ...state.user, ...data } });
@@ -137,6 +173,35 @@ export function addOrig(update) {
 				: update.fg,
 		},
 	});
+}
+
+export function hasflag(user, flag) {
+	return user?.flags?.includes?.(flag);
+}
+
+export function hardcoreante(Cards, deck) {
+	let sum = 0;
+	const groups = [];
+	for (const [code, count] of iterraw(deck)) {
+		const card = Cards.Codes[code];
+		if (card && !card.pillar) {
+			sum += count;
+			groups.push([sum, code]);
+		}
+	}
+	const pick = (Math.random() * sum) | 0;
+	for (const [gsum, gcode] of groups) {
+		if (pick < gsum) {
+			for (const [code, _count] of iterraw(state.user.accountbound)) {
+				if (code === gcode) {
+					return { c: gcode, bound: true };
+				}
+			}
+			return { c: gcode, bound: false };
+		}
+	}
+
+	return null;
 }
 
 export function useRx(cb = x => x) {

@@ -2,7 +2,6 @@ import { iterdeck, fromTrueMark } from './etgutil.js';
 import OriginalCards from './vanilla/Cards.js';
 import OpenCards from './Cards.js';
 import enums from './enum.json' assert { type: 'json' };
-import { randint } from './util.js';
 import * as wasm from './rs/pkg/etg.js';
 
 const GameMoveType = ['end', 'cast', 'accept', 'mulligan', 'foe', 'resign'];
@@ -16,6 +15,8 @@ export default class Game {
 		);
 		this.data = data;
 		this.replay = [];
+		this.start = performance.now() | 0;
+		this.duration = 0;
 		const playersByIdx = new Map();
 		for (let i = 0; i < data.players.length; i++) {
 			playersByIdx.set(data.players[i].idx, i + 1);
@@ -61,7 +62,9 @@ export default class Game {
 		const obj = Object.create(Game.prototype);
 		obj.game = this.clonegame();
 		obj.data = this.data;
-		obj.replay = this.replay.slice();
+		obj.replay = null;
+		obj.start = this.start;
+		obj.duration = this.duration;
 		return obj;
 	}
 
@@ -102,9 +105,21 @@ export default class Game {
 		}
 		return plies;
 	}
+	nextClone(cmd, fx = true) {
+		const game = this.clone();
+		if (this.replay) game.replay = [...this.replay, cmd];
+		return [game, game.nextCmd(cmd, fx)];
+	}
 	nextCmd(cmd, fx = true) {
-		if (this.replay) this.replay.push(cmd);
-		return this.next(GameMoveType.indexOf(cmd.x), cmd.c | 0, cmd.t | 0, fx);
+		const res = this.next(
+			GameMoveType.indexOf(cmd.x),
+			cmd.c | 0,
+			cmd.t | 0,
+			fx,
+		);
+		if (this.duration === 0 && this.winner !== 0)
+			this.duration = (performance.now() | 0) - this.start;
+		return res;
 	}
 	withMoves(moves) {
 		const newgame = new Game(this.data);
@@ -117,7 +132,7 @@ export default class Game {
 		return (
 			this.replay &&
 			JSON.stringify({
-				date: this.time,
+				date: Date.now(),
 				seed: this.data.seed,
 				set: this.data.set,
 				players: this.data.players,

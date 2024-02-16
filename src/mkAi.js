@@ -37,8 +37,8 @@ export function mkPremade(level, daily, datafn = null) {
 		players: [
 			{
 				idx: 1,
-				name: user.name,
-				user: user.name,
+				name: store.state.username,
+				user: store.state.username,
 				deck: urdeck,
 			},
 			{
@@ -83,8 +83,8 @@ export function mkAi(level, daily, datafn = null) {
 		players: [
 			{
 				idx: 1,
-				name: user?.name,
-				user: user ? user.name : '',
+				name: store.state.username,
+				user: store.state.username ?? '',
 				deck: urdeck,
 			},
 			{

@@ -56,11 +56,11 @@ export const Editor = [
 export const Shop = [
 	[
 		'position:absolute;left:45px;top:97px;width:520px;height:158px',
-		'1) Select the element of the pack you want to buy\nEach card has a 50% chance of being in the chosen element\nRandom pack means the cards is completely random instead',
+		'1) Select the element of the pack you want to buy\nEach card has a \u2154 chance of being in the chosen element\nRandom pack means the cards is completely random instead',
 	],
 	[
 		'position:absolute;left:45px;top:275px;width:610px;height:158px',
-		'2) Select the type of pack you want\nYou see the amount of cards & rarity of each pack in the upper box',
+		'2) Select the type of pack you want\nYou see the amount of cards & rarity of each pack in the upper box\nA red circle at the top right of the pack indicates how many free packs you have available',
 	],
 	[
 		'position:absolute;left:590px;top:97px;width:260px;height:158px',

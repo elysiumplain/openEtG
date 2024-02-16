@@ -24,19 +24,11 @@ use wasm_bindgen::prelude::*;
 extern "C" {
 	#[wasm_bindgen(js_namespace = console)]
 	fn log(s: &str);
-
-	#[wasm_bindgen(js_namespace = Date)]
-	fn now() -> f64;
 }
 
 #[cfg(not(target_arch = "wasm32"))]
 pub fn log(s: &str) {
 	println!("{}", s);
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-pub fn now() -> f64 {
-	0.0
 }
 
 pub fn set_panic_hook() {
@@ -66,7 +58,7 @@ mod test {
 	}
 
 	fn setup(set: CardSet) -> (Game, i16, i16) {
-		let mut ctx = Game::new(1728, set, 2);
+		let mut ctx = Game::new(1728, set, 2, 0);
 		let players = [1, 2];
 		for p in players {
 			ctx.set_leader(p, p);
@@ -502,6 +494,12 @@ mod test {
 		Skill::steal.proc(&mut ctx, p2, bw, &mut ProcData::default());
 		assert_eq!(ctx.get_shield(p1), 0);
 		assert_eq!(ctx.get(ctx.get_shield(p2), Stat::charges), 1);
+		// check against non-stacking duplicable permanent
+		let epi1 = ctx.new_thing(card::Epidemic, p1);
+		let epi2 = ctx.new_thing(card::Epidemic, p1);
+		Skill::steal.proc(&mut ctx, p2, epi2, &mut ProcData::default());
+		assert_eq!(ctx.get_owner(epi2), p2);
+		assert_eq!(ctx.get_owner(epi1), p1);
 	}
 
 	#[test]

@@ -26,13 +26,17 @@ use hyper_tungstenite::{
 };
 use hyper_util::rt::TokioIo;
 use tokio::signal::unix::{signal, SignalKind};
+use tokio_rustls::{
+	rustls::{ClientConfig, RootCertStore},
+	TlsConnector,
+};
 
 use bb8_postgres::{bb8::Pool, tokio_postgres, PostgresConnectionManager};
 
 use crate::handleget::AsyncCache;
-use crate::handlews::{AsyncSocks, AsyncUserSocks, AsyncUsers};
+use crate::handlews::{AsyncSocks, AsyncUsers};
 
-pub type PgPool = Arc<Pool<PostgresConnectionManager<tokio_postgres::NoTls>>>;
+pub type PgPool = Pool<PostgresConnectionManager<tokio_postgres::NoTls>>;
 pub type WsStream = WebSocketStream<TokioIo<hyper::upgrade::Upgraded>>;
 
 pub fn get_day() -> u32 {
@@ -72,32 +76,36 @@ impl From<ConfigRaw> for Config {
 
 type Error = Box<dyn std::error::Error + Send + Sync + 'static>;
 
-#[derive(Clone)]
 struct Server {
 	pub users: AsyncUsers,
-	pub usersocks: AsyncUserSocks,
 	pub socks: AsyncSocks,
 	pub cache: AsyncCache,
 	pub pgpool: PgPool,
+	pub tls: TlsConnector,
 }
 
-impl hyper::service::Service<Request<Incoming>> for Server {
+pub struct ServerService(Arc<Server>);
+
+impl hyper::service::Service<Request<Incoming>> for ServerService {
 	type Response = Response<Full<Bytes>>;
 	type Error = Error;
 	type Future = Pin<Box<dyn Future<Output = Result<Self::Response, Self::Error>> + Send>>;
 
 	fn call(&self, mut req: Request<Incoming>) -> Self::Future {
-		let pgpool = self.pgpool.clone();
-		let users = self.users.clone();
-		let usersocks = self.usersocks.clone();
-		let socks = self.socks.clone();
-		let cache = self.cache.clone();
+		let server = self.0.clone();
 		Box::pin(async move {
 			if hyper_tungstenite::is_upgrade_request(&req) {
 				if let Ok((response, socket)) = hyper_tungstenite::upgrade(&mut req, None) {
 					tokio::spawn(async move {
 						if let Ok(ws) = socket.await {
-							handlews::handle_ws(ws, pgpool, users, usersocks, socks).await
+							handlews::handle_ws(
+								ws,
+								&server.pgpool,
+								&server.users,
+								&server.socks,
+								&server.tls,
+							)
+							.await
 						}
 					});
 
@@ -107,7 +115,7 @@ impl hyper::service::Service<Request<Incoming>> for Server {
 				}
 			} else {
 				Ok(handleget::handle_get(
-					req.uri().path(),
+					req.uri(),
 					req.headers()
 						.get("if-modified-since")
 						.and_then(|hv| hv.to_str().ok())
@@ -116,9 +124,9 @@ impl hyper::service::Service<Request<Incoming>> for Server {
 						.get("accept-encoding")
 						.and_then(|hv| hv.to_str().ok())
 						.and_then(|hv| hv.parse().ok()),
-					pgpool,
-					users,
-					cache,
+					&server.pgpool,
+					&server.users,
+					&server.cache,
 				)
 				.await)
 			}
@@ -131,36 +139,34 @@ async fn main() {
 	let _sigpipestream = signal(SignalKind::pipe()).expect("Failed to setup pipe handler");
 	let (listenport, pgpool) = {
 		let configjson = tokio::fs::read("../../../config.json").await.expect("Failed to load config.json");
-		let configraw =
-			serde_json::from_slice::<ConfigRaw>(&configjson).expect("Failed to parse config.json");
-		let Config { listen, pg, certs } = Config::from(configraw);
+		let Config { listen, pg, certs } =
+			serde_json::from_slice::<ConfigRaw>(&configjson).expect("Failed to parse config.json").into();
 		if certs.is_some() {
 			panic!("HTTPS cert support isn't implemented");
 		}
 		(
 			listen,
-			Arc::new(
-				Pool::builder()
-					.build(PostgresConnectionManager::new(pg, tokio_postgres::NoTls))
-					.await
-					.expect("Failed to create connection pool"),
-			),
+			Pool::builder()
+				.build(PostgresConnectionManager::new(pg, tokio_postgres::NoTls))
+				.await
+				.expect("Failed to create connection pool"),
 		)
 	};
 
 	let (closetx, closerx) = tokio::sync::watch::channel(());
+	let mut gccloserx = closerx.clone();
 
 	let users = AsyncUsers::default();
-	let usersocks = AsyncUserSocks::default();
 	let socks = AsyncSocks::default();
 	let cache = AsyncCache::default();
-	let gcusers = users.clone();
-	let gcusersocks = usersocks.clone();
-	let gcsocks = socks.clone();
-	let gcpgpool = pgpool.clone();
-	let mut gccloserx = closerx.clone();
-	let sigintusers = users.clone();
-	let sigintpgpool = pgpool.clone();
+	let tlsconfig = ClientConfig::builder()
+		.with_root_certificates(RootCertStore {
+			roots: webpki_roots::TLS_SERVER_ROOTS.iter().cloned().collect(),
+		})
+		.with_no_client_auth();
+	let tls = TlsConnector::from(Arc::new(tlsconfig));
+	let server = Arc::new(Server { pgpool, users, socks, cache, tls });
+	let gc = server.clone();
 
 	let mut interval = tokio::time::interval(Duration::new(300, 0));
 	tokio::spawn(async move {
@@ -176,10 +182,10 @@ async fn main() {
 				}
 				_ = interval.tick() => (),
 			}
-			if let Ok(client) = gcpgpool.get().await {
-				let mut users = gcusers.write().await;
+			if let Ok(client) = gc.pgpool.get().await {
+				let mut users = gc.users.write().await;
 				let _ = tokio::join!(users
-					.store(&client, gcusersocks.clone(), gcsocks.clone()),
+					.store(&client, &gc.socks),
 					client.execute("delete from trade_request where expire_at < now()", &[]),
 					client.execute(
 						"with expiredids (id) as (select id from games where expire_at < now()) \
@@ -192,7 +198,6 @@ async fn main() {
 
 	let mut sigintstream = signal(SignalKind::interrupt()).expect("Failed to setup signal handler");
 	let listener = tokio::net::TcpListener::bind((Ipv4Addr::new(0, 0, 0, 0), listenport)).await.unwrap();
-	let server = Server { pgpool, users, usersocks, socks, cache };
 	let mut http = hyper::server::conn::http1::Builder::new();
 	http.keep_alive(true);
 
@@ -202,12 +207,12 @@ async fn main() {
 			_ = sigintstream.recv() => break,
 			accepted = listener.accept() => {
 				if let Ok((stream, _)) = accepted {
-				let connection = http.serve_connection(TokioIo::new(stream), server.clone()).with_upgrades();
-				tokio::spawn(async move {
-					if let Err(err) = connection.await {
-						println!("Error serving HTTP connection: {err:?}");
-					}
-				});
+					let connection = http.serve_connection(TokioIo::new(stream), ServerService(server.clone())).with_upgrades();
+					tokio::spawn(async move {
+						if let Err(err) = connection.await {
+							println!("Error serving HTTP connection: {err:?}");
+						}
+					});
 				}
 			}
 		}
@@ -215,12 +220,12 @@ async fn main() {
 
 	drop(closetx);
 	println!("Shutting down");
-	if let Ok(client) = sigintpgpool.get().await {
-		if !sigintusers.write().await.saveall(&client).await {
+	if let Ok(client) = server.pgpool.get().await {
+		if !server.users.read().await.saveall(&client).await {
 			println!("Error while saving users");
 		}
 	} else {
 		println!("Failed to connect");
 	}
-	drop(sigintpgpool);
+	drop(server)
 }

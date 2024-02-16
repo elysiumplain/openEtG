@@ -25,9 +25,9 @@ use wasm_bindgen::prelude::*;
 use crate::card::{self, Card, Cards};
 use crate::etg;
 use crate::generated;
+use crate::set_panic_hook;
 use crate::skill::{Event, ProcData, Skill, SkillName, Skills};
 use crate::text::SkillThing;
-use crate::{now, set_panic_hook};
 
 #[cfg_attr(target_arch = "wasm32", wasm_bindgen)]
 #[derive(Clone, Copy, Hash, Eq, PartialEq)]
@@ -260,6 +260,7 @@ pub enum Fx {
 	Sfx(Sfx),
 	Shatter,
 	Shuffled,
+	Silence,
 	Sinkhole,
 	Siphon,
 	StartPos(i16),
@@ -550,8 +551,6 @@ pub struct Game {
 	pub turn: i16,
 	pub winner: i16,
 	pub phase: Phase,
-	pub time: f64,
-	pub duration: f64,
 	plprops: Vec<Rc<PlayerData>>,
 	props: Vec<Rc<ThingData>>,
 	attacks: Vec<(i16, i16)>,
@@ -566,8 +565,6 @@ impl Clone for Game {
 			turn: self.turn,
 			winner: self.winner,
 			phase: self.phase,
-			time: 0.0,
-			duration: 0.0,
 			plprops: self.plprops.clone(),
 			props: self.props.clone(),
 			attacks: self.attacks.clone(),
@@ -580,7 +577,7 @@ impl Clone for Game {
 #[cfg_attr(target_arch = "wasm32", wasm_bindgen)]
 impl Game {
 	#[cfg_attr(target_arch = "wasm32", wasm_bindgen(constructor))]
-	pub fn new(seed: u32, set: CardSet, players: u8) -> Game {
+	pub fn new(seed: u32, set: CardSet, players: u8, now: u32) -> Game {
 		set_panic_hook();
 		let mut plprops = Vec::with_capacity(players as usize);
 		for id in 1..=players as i16 {
@@ -596,8 +593,6 @@ impl Game {
 			turn: 1,
 			winner: 0,
 			phase: if set == CardSet::Original { Phase::Play } else { Phase::Mulligan },
-			time: now(),
-			duration: 0.0,
 			plprops,
 			props: Vec::new(),
 			attacks: Vec::new(),
@@ -1218,13 +1213,18 @@ impl Game {
 				let mut gclone = self.clone();
 				gclone.rng = Pcg32::from_rng(&mut seedrng).unwrap();
 				for pl in 1..=gclone.players_len() {
-					for pr in gclone.get_player(pl).permanents {
+					let player = gclone.get_player(pl);
+					let sh = player.shield;
+					for pr in player.permanents {
 						if pr != 0
 							&& (gclone.hasskill(pr, Event::Attack, Skill::patience)
 								|| gclone.get(pr, Flag::patience))
 						{
 							gclone.remove(pr);
 						}
+					}
+					if sh != 0 && gclone.hasskill(sh, Event::Shield, Skill::deckblock) {
+						gclone.remove(sh);
 					}
 				}
 				gclone.r#move(GameMove::End(0));
@@ -1830,17 +1830,17 @@ impl Game {
 		}
 		let sosa = thing.status.get(Stat::sosa) != 0;
 		let realdmg = if sosa { -dmg } else { dmg };
-		let capdmg = if realdmg < 0 {
-			thing.status.get(Stat::hp).saturating_sub(thing.status.get(Stat::maxhp)).max(realdmg)
-		} else if !dontdie && kind != Kind::Player {
-			self.truehp(id).min(realdmg)
+		let (realdmg, capdmg) = if realdmg < 0 {
+			let dmg = thing.status.get(Stat::hp).saturating_sub(thing.status.get(Stat::maxhp)).max(realdmg);
+			(dmg, dmg)
 		} else {
-			realdmg
+			let dmg = if kind == Kind::Player { realdmg } else { self.truehp(id).min(realdmg) };
+			(if dontdie { realdmg } else { dmg }, dmg)
 		};
 		let hp = self.get_mut(id, Stat::hp);
-		*hp = hp.saturating_sub(capdmg);
+		*hp = hp.saturating_sub(realdmg);
 		if kind != Kind::Player {
-			self.fx(id, Fx::Dmg(capdmg));
+			self.fx(id, Fx::Dmg(realdmg));
 		}
 		let mut dmgdata = ProcData::default();
 		dmgdata.dmg = dmg;
@@ -1906,7 +1906,7 @@ impl Game {
 	}
 
 	pub fn iter_skills(&self, id: i16) -> impl Iterator<Item = (Event, &[Skill])> {
-		self.get_thing(id).skill.iter().map(|(k, v)| (k, v.as_ref()))
+		self.get_thing(id).skill.iter()
 	}
 
 	pub fn new_thing(&mut self, code: i16, owner: i16) -> i16 {
@@ -2328,7 +2328,6 @@ impl Game {
 				if winners != 0 {
 					self.winner = winners;
 					self.phase = Phase::End;
-					self.duration = now() - self.time;
 				} else if self.turn == id {
 					self.nextTurn();
 				}

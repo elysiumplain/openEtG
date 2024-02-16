@@ -1,4 +1,4 @@
-import { card_index, card_name, card_set, CardSet } from '../rs/pkg/etg.js';
+import { card_index, card_name, CardSet } from '../rs/pkg/etg.js';
 
 function trMouseOver(e) {
 	let i = 1;
@@ -36,7 +36,7 @@ for (const credit of [
 	],
 	[
 		['kae', 'https://kaeillustrates.art'],
-		'4sd4sg4sh4tc50650750152l52q53553655u56756b56d58s59859b59c59d59e59j5bs5bu5c25c45c65c75cu5f55fb5fk5fl5fm5fo5ib5il5io5iq5j15ld5lg5lj5ls5lt5m15m35od5oe5og5ok5om5oo5oq5os5ov5p05rg5rj5rr5s45s85uo5v25v85vf5vj62b62e62i6rs7ae7ak77c7gr7h57k0',
+		'4sd4sg4sh4tc50650750152l52q53553655u56756b56d58s59859b59c59d59e59j5bs5bu5c25c45c65c75cu5cv5f55fb5fk5fl5fm5fo5ib5il5io5iq5j15ld5lg5lj5ls5lt5m15m35od5oe5og5ok5om5oo5oq5os5ov5p05rg5rj5rr5s45s85uo5v25v85vf5vj62b62e62i6rs7ae7ak77c7gr7h57k0lcv',
 	],
 	[
 		['Lost in Nowhere', '/forum/index.php?action=profile;u=38'],
@@ -67,7 +67,7 @@ for (const credit of [
 	],
 	[
 		['serprex', 'https://serprex.github.io'],
-		'50453al8t5cj5ctlfp5iv5j05p4lrl5rolrp5s0lsb5sc5sd5valvh5vl62262a62h62j',
+		'50453a53bl8t5cj5ctlfp5iv5j05p4lrl5rolrp5s0lsb5sc5sd5sf5valvh5vl62262a62h62j',
 	],
 	[
 		['Sovereign', 'https://soundcloud.com/the_sovereign'],
@@ -99,6 +99,13 @@ for (const credit of [
 		'4sb4vc4ve4vh52t55l55o55r5605625635915c05c15c95f15f25fa5fc5i55i75id5ij5ll5oc5of5rk5rs5rt5uk5ul5um5ut5uv5v361o61t62462562674a80g590',
 	],
 	[['NASA', 'https://nasa.gov'], '5p2'],
+	[
+		[
+			'Atlas/3',
+			'https://github.com/Render96/Render96Wiki/wiki/cobble_stone-%28The-Texture-of-Your-Childhood%29',
+		],
+		'59l',
+	],
 	[['freeSFX', 'https://freesfx.co.uk'], []],
 ]) {
 	let tr = document.createElement('tr');

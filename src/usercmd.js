@@ -140,6 +140,10 @@ export function addloss(data, user) {
 		result.streak[data.l] = 0;
 	}
 	if (data.g) result.gold = user.gold + (data.g | 0);
+	if (data.c) {
+		const key = data.bound ? 'accountbound' : 'pool';
+		result[key] = etgutil.addcard(user[key], data.c, -1);
+	}
 	return result;
 }
 export function addwin(data, user) {
@@ -155,10 +159,12 @@ export function setstreak(data, user) {
 	return { streak };
 }
 export function addcards(data, user) {
-	return { pool: etgutil.mergedecks(user.pool, data.c) };
+	const key = data.bound ? 'accountbound' : 'pool';
+	return { [key]: etgutil.mergedecks(user[key], data.c) };
 }
-export function addboundcards(data, user) {
-	return { accountbound: etgutil.mergedecks(user.accountbound, data.c) };
+export function rmcard(data, user) {
+	const key = data.bound ? 'accountbound' : 'pool';
+	return { [key]: etgutil.addcard(user[key], data.c, -1) };
 }
 export function donedaily(data, user) {
 	const result = {};

@@ -1,6 +1,7 @@
 import * as store from './store.jsx';
+import * as sock from './sock.jsx';
 import { randint, shuffle } from './util.js';
-import { decodedeck } from './etgutil.js';
+import { decodedeck, encodeCode } from './etgutil.js';
 import Cards from './Cards.js';
 import Game from './Game.js';
 
@@ -401,19 +402,19 @@ export const quarks = {
 			'You have proved your worth for the Master of Arms, and he gives you one of his rare weapons.',
 		/* prettier-ignore */
 		choicerewards: [
-		5109, 5124,
-		5210, 5222,
-		5308, 5324,
-		5407, 5423,
-		5509, 5523,
-		5607, 5621,
-		5708, 5723,
-		5809, 5822,
-		5909, 5924,
-		6008, 6025,
-		6107, 6126,
-		6206, 6223,
-	],
+			5109, 5124,
+			5210, 5222,
+			5308, 5324,
+			5407, 5423,
+			5509, 5523,
+			5607, 5621,
+			5708, 5723,
+			5809, 5822,
+			5909, 5924,
+			6008, 6025,
+			6107, 6126,
+			6206, 6223,
+		],
 		info: 'Fight the Master of Arms at the Proving Grounds!',
 	},
 	pgshard: {
@@ -638,7 +639,7 @@ export const quarks = {
 		hp: 400,
 		markpower: 3,
 		drawpower: 2,
-		cardreward: '0171r01785017bf017ea017hj017nm017qv01813018pi',
+		cardreward: '0171r01785017bf017ea017hj017nm017qv01813',
 		info: 'The AI has taken control of Serprex’s account and gone berserk. It has a power beyond a demigod!',
 		wintext:
 			'You defeat the AI menace and restore Serprex’s account to their rightful place. Phew!',
@@ -732,7 +733,7 @@ export function mkQuestAi(quest, datafn) {
 	const drawpower = quest.drawpower ?? 1;
 	const hp = quest.hp ?? 100;
 	const playerHPstart = quest.urhp ?? 100;
-	const { user } = store.state;
+	const { user, username } = store.state;
 	let urdeck = quest.urdeck;
 	if (!urdeck) {
 		urdeck = store.getDeck();
@@ -749,8 +750,8 @@ export function mkQuestAi(quest, datafn) {
 		players: [
 			{
 				idx: 1,
-				name: user.name,
-				user: user.name,
+				name: username,
+				user: username,
 				deck: urdeck,
 				hp: playerHPstart,
 			},
@@ -770,6 +771,15 @@ export function mkQuestAi(quest, datafn) {
 		data.goldreward = quest.goldreward;
 		data.choicerewards = quest.choicerewards;
 		data.rewardamount = quest.rewardamount;
+		if (!quest.urdeck && store.hasflag(user, 'hardcore')) {
+			const ante = store.hardcoreante(Cards, urdeck);
+			if (ante) {
+				data.ante = ante;
+				sock.userExec('rmcard', ante);
+				const key = ante.bound ? 'cardreward' : 'poolreward';
+				data[key] = '01' + encodeCode(ante.c) + (data[key] ?? '');
+			}
+		}
 	}
 	shuffle(data.players);
 	return new Game(datafn ? datafn(data) : data);

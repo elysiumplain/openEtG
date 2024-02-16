@@ -2,7 +2,7 @@ import { createMemo, createSignal, onMount } from 'solid-js';
 import { For, Show } from 'solid-js/web';
 
 import Cards from '../Cards.js';
-import { deck2pool, encodeCode, encodeCount } from '../etgutil.js';
+import { deck2pool } from '../etgutil.js';
 import { cardValue, sellValue } from '../userutil.js';
 import * as sock from '../sock.jsx';
 import * as store from '../store.jsx';
@@ -125,38 +125,48 @@ function OrderBook(p) {
 		<div
 			class="bgbox"
 			style="position:absolute;top:270px;width:900px;height:330px;overflow-y:auto">
-			<label style="display:inline-block;width:200px">
-				<input
-					type="checkbox"
-					checked={p.deal}
-					onChange={e => store.setOptTemp('orderFilter_Deal', e.target.checked)}
-				/>{' '}
-				Deals
-			</label>
-			<label style="display:inline-block;width:200px">
-				<input
-					type="checkbox"
-					checked={p.buy}
-					onChange={e => store.setOptTemp('orderFilter_Buy', e.target.checked)}
-				/>{' '}
-				Buys
-			</label>
-			<label style="display:inline-block;width:200px">
-				<input
-					type="checkbox"
-					checked={p.sell}
-					onChange={e => store.setOptTemp('orderFilter_Sell', e.target.checked)}
-				/>{' '}
-				Sells
-			</label>
-			<label style="display:inline-block;width:200px">
-				<input
-					type="checkbox"
-					checked={p.mine}
-					onChange={e => store.setOptTemp('orderFilter_Mine', e.target.checked)}
-				/>{' '}
-				Mine
-			</label>
+			<div style="display:flex;justify-content:space-between">
+				<label style="flex:1">
+					<input
+						type="checkbox"
+						checked={p.deal}
+						onChange={e =>
+							store.setOptTemp('orderFilter_Deal', e.target.checked)
+						}
+					/>{' '}
+					Deals
+				</label>
+				<label style="flex:1">
+					<input
+						type="checkbox"
+						checked={p.buy}
+						onChange={e =>
+							store.setOptTemp('orderFilter_Buy', e.target.checked)
+						}
+					/>{' '}
+					Buys
+				</label>
+				<label style="flex:1">
+					<input
+						type="checkbox"
+						checked={p.sell}
+						onChange={e =>
+							store.setOptTemp('orderFilter_Sell', e.target.checked)
+						}
+					/>{' '}
+					Sells
+				</label>
+				<label style="flex:1">
+					<input
+						type="checkbox"
+						checked={p.mine}
+						onChange={e =>
+							store.setOptTemp('orderFilter_Mine', e.target.checked)
+						}
+					/>{' '}
+					Mine
+				</label>
+			</div>
 			{p.bz && (
 				<div style="column-count:3;width:890px">
 					<OrderSummary
@@ -230,7 +240,7 @@ export default function Bazaar() {
 			<ExitBtn x={8} y={56} />
 			<input
 				type="button"
-				value="Orders"
+				value="All Offers"
 				onClick={() => setShowOrders(showOrders => !showOrders)}
 				style="position:absolute;top:96px;left:8px;"
 			/>
@@ -249,13 +259,13 @@ export default function Bazaar() {
 						style="position:absolute;left:100px;top:8px"
 					/>
 					<input
-						placeholder="Price"
+						placeholder="Sell Price"
 						value={sell() || ''}
 						onInput={e => setSell(Math.min(e.target.value | 0, 999))}
 						style="position:absolute;left:200px;top:8px"
 					/>
 					<input
-						placeholder="Quantity"
+						placeholder="Sell Quantity"
 						value={sellq() || ''}
 						onInput={e => setSellq(Math.min(e.target.value | 0, 999))}
 						style="position:absolute;left:360px;top:8px"
@@ -275,13 +285,13 @@ export default function Bazaar() {
 						/>
 					)}
 					<input
-						placeholder="Price"
+						placeholder="Buy Price"
 						value={buy() || ''}
 						onInput={e => setBuy(Math.min(e.target.value | 0, 999))}
 						style="position:absolute;left:200px;top:40px"
 					/>
 					<input
-						placeholder="Quantity"
+						placeholder="Buy Quantity"
 						value={buyq() || ''}
 						onInput={e => setBuyq(Math.min(e.target.value | 0, 999))}
 						style="position:absolute;left:360px;top:40px"
@@ -297,7 +307,7 @@ export default function Bazaar() {
 						<span class="ico g" />
 					</div>
 					<CardOrders
-						username={rx.user.name}
+						username={rx.username}
 						bc={bz()[bcard().code]}
 						onClickBuy={(sell, sellq) => {
 							setSell(sell);
@@ -314,6 +324,31 @@ export default function Bazaar() {
 						}
 					/>
 				</>
+			)}
+			{(!bcard() || !bz()) && (
+				<div style="position:absolute;left:250px;top:20px">
+					<h3>This area will show you available orders</h3>
+					<div style="padding-bottom:15px">
+						<ol>
+							<li>Select a card which you wish to buy or sell</li>
+							<li>
+								Orders are formatted:
+								<ul>
+									<li>
+										Buy <span style="color:#4f8">(# Cards) @ (price each)</span>
+									</li>
+									<li>
+										Sell{' '}
+										<span style="color:#f84">(# Cards) @ (price each)</span>
+									</li>
+								</ul>
+							</li>
+							<li>Click an order and the Order Form will autofill for you</li>
+							<li>You can manually adjust the quantity in the Order Form</li>
+							<li>To view all transactions in one view, click All Offers</li>
+						</ol>
+					</div>
+				</div>
 			)}
 			<div style="position:absolute;left:5px;top:240px">
 				{rx.user.gold}
@@ -333,7 +368,7 @@ export default function Bazaar() {
 			/>
 			{showOrders() && (
 				<OrderBook
-					username={rx.user.name}
+					username={rx.username}
 					deal={rx.opts.orderFilter_Deal ?? false}
 					buy={rx.opts.orderFilter_Buy ?? true}
 					sell={rx.opts.orderFilter_Sell ?? true}

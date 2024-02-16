@@ -199,7 +199,7 @@ function computeBonuses(game, p1id, lefttext, streakrate, setTip, clearTip) {
 				if (replayGame.get(move.c, 'pillar')) replayStats.pillarsPlayed++;
 			}
 		}
-		replayGame.nextCmd(move);
+		replayGame.nextCmd(move, false);
 	}
 	replayStats.creaturesDied = replayGame.get(p1id, 'lives');
 
@@ -227,11 +227,12 @@ function computeBonuses(game, p1id, lefttext, streakrate, setTip, clearTip) {
 export default function Result(props) {
 	const rx = store.useRx();
 	const { game } = props,
-		p1id = game.userId(rx.user.name);
+		p1id = game.userId(rx.username);
 	const [tooltip, setTip] = createSignal(null);
-	const leftext = [];
 	let goldreward = game.data.goldreward,
-		cardreward = game.data.cardreward;
+		boundreward = game.data.cardreward ?? '',
+		poolreward = game.data.poolreward ?? '',
+		spinreward = '';
 
 	const canRematch = () =>
 		game.data.rematch &&
@@ -256,11 +257,8 @@ export default function Result(props) {
 
 	const onkeydown = e => {
 		if (e.target.tagName === 'TEXTAREA') return;
-		const kc = e.which;
-		if (kc === 32 || kc === 13) exitFunc();
-		else if ((kc === 87 || e.key === 'w') && canRematch()) {
-			game.data.rematch();
-		}
+		if (e.key === ' ' || e.key === 'Enter') exitFunc();
+		else if (e.key === 'w' && canRematch()) game.data.rematch();
 	};
 
 	const clearTip = () => setTip(null);
@@ -296,7 +294,7 @@ export default function Result(props) {
 		if (level !== undefined) {
 			const foedecks = game.data.players.filter(pd => !pd.user),
 				foedeck = choose(foedecks);
-			if (cardreward === undefined && foedeck) {
+			if (foedeck) {
 				const foeDeck = etgutil.decodedeck(foedeck.deck);
 				// Chromatic Butterfly if nothing winnable
 				let winnable = foeDeck.filter(code => {
@@ -304,7 +302,16 @@ export default function Result(props) {
 						return card && card.rarity > 0 && card.rarity < 4;
 					}),
 					cardwon = winnable.length ? choose(winnable) : 5009;
-				cardreward = '01' + etgutil.encodeCode(etgutil.asShiny(cardwon, false));
+				spinreward = '01' + etgutil.encodeCode(etgutil.asShiny(cardwon, false));
+				poolreward += spinreward;
+			}
+			if (props.hardcoreback) {
+				const hardreward = '01' + etgutil.encodeCode(props.hardcoreback);
+				if (props.hardcorebound) {
+					boundreward = hardreward + boundreward;
+				} else {
+					poolreward = hardreward + poolreward;
+				}
 			}
 			if (goldreward === undefined) {
 				if (level !== undefined) {
@@ -345,10 +352,11 @@ export default function Result(props) {
 		if (goldreward) {
 			sock.userExec('addgold', { g: goldreward });
 		}
-		if (cardreward) {
-			sock.userExec(`add${game.data.quest ? 'bound' : ''}cards`, {
-				c: cardreward,
-			});
+		if (boundreward) {
+			sock.userExec('addcards', { c: boundreward, bound: true });
+		}
+		if (poolreward) {
+			sock.userExec('addcards', { c: poolreward });
 		}
 	}
 	if (
@@ -368,8 +376,8 @@ export default function Result(props) {
 			game.get(p1id, 'hp'),
 			game.get(p1id, 'maxhp'),
 			(goldreward | 0) - (game.data.cost | 0),
-			cardreward || '-',
-			calcWealth(Cards, cardreward),
+			spinreward || '-',
+			calcWealth(Cards, spinreward),
 			winner ? (props.streakback ?? 0) + 1 : 0,
 			streakrate,
 		];
@@ -392,9 +400,10 @@ export default function Result(props) {
 	}
 
 	const cards = () => {
-		const cards = [];
+		const cards = [],
+			cardreward = boundreward + poolreward;
 		if (cardreward) {
-			let x0 = 470 - etgutil.decklength(cardreward) * 20 - 80;
+			let x0 = 390 - etgutil.decklength(cardreward) * 20;
 			for (const code of etgutil.iterdeck(cardreward)) {
 				cards.push(<Card x={x0} y={170} card={Cards.Codes[code]} />);
 				x0 += 40;
@@ -430,11 +439,16 @@ export default function Result(props) {
 					{cards}
 					<div
 						style={`text-align:center;width:700px;position:absolute;left:100px;bottom:${
-							cardreward ? 444 : 180
+							boundreward || poolreward ? 444 : 180
 						}px`}>
 						<Text text={game.data.wintext ?? 'You won!'} />
 					</div>
 				</>
+			)}
+			{game.winner !== p1id && props.hardcoreback && (
+				<div style="opacity:.3">
+					<Card x={370} y={170} card={Cards.Codes[props.hardcoreback]} />
+				</div>
 			)}
 			<span style="position:absolute;left:8px;top:290px">{lefttext}</span>
 			<div style="position:absolute;left:8px;top:258px">{tooltip()}</div>

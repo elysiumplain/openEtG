@@ -54,13 +54,14 @@ export default function OriginalMainMenu() {
 	const origfoename = () => rx.opts.origfoename ?? '';
 
 	let ocard = null;
-	if (rx.orig.oracle !== rx.user.oracle) {
+	const user_oracle = (rx.uname ? rx.alts[''] : rx.user).oracle;
+	if (rx.orig.oracle !== user_oracle) {
 		const fg = upto(aiDecks.fg.length);
 		const ocode = original_oracle(randint());
 		ocard = Cards.Codes[ocode];
 		const update = {
 			pool: '01' + etgutil.encodeCode(ocode),
-			oracle: rx.user.oracle,
+			oracle: user_oracle,
 			fg,
 		};
 		userEmit('origadd', update);
@@ -106,7 +107,7 @@ export default function OriginalMainMenu() {
 				: 3,
 			rematch: () => vsAi(level, cost, basereward, hpreward),
 			players: shuffle([
-				{ idx: 1, name: rx.user.name, user: rx.user.name, deck: rx.orig.deck },
+				{ idx: 1, name: rx.username, user: rx.username, deck: rx.orig.deck },
 				{
 					idx: 2,
 					ai: 1,

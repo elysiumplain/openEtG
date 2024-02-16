@@ -3,14 +3,13 @@
 use std::collections::{BTreeMap, HashMap};
 use std::convert::Infallible;
 use std::fmt::Write;
-use std::sync::Arc;
+use std::sync::RwLock;
 use std::time::SystemTime;
 
 use http_body_util::Full;
 use httpdate::HttpDate;
 use hyper::body::Bytes;
 use hyper::http::{self, header, response, HeaderValue, Response};
-use tokio::sync::RwLock;
 
 use etg::card;
 
@@ -64,10 +63,10 @@ impl Cache {
 	}
 }
 
-pub type AsyncCache = Arc<RwLock<Cache>>;
+pub type AsyncCache = RwLock<Cache>;
 
 pub async fn compress_and_cache(
-	cache: AsyncCache,
+	cache: &AsyncCache,
 	encoding: Encoding,
 	path: String,
 	resp: PlainResponse,
@@ -93,11 +92,14 @@ pub async fn compress_and_cache(
 				kind: resp.kind,
 				mtime: mtime.duration_since(SystemTime::UNIX_EPOCH).unwrap().as_secs(),
 				mtimestring: Some(HttpDate::from(mtime).to_string()),
-				content: Bytes::from(compressed),
+				content: Bytes::from(compressed.into_boxed_slice()),
 				file: resp.file,
 			};
-			let mut wcache = cache.write().await;
-			wcache.get_map_mut(encoding).insert(path, cached_resp.clone());
+			cache
+				.write()
+				.unwrap_or_else(|e| e.into_inner())
+				.get_map_mut(encoding)
+				.insert(path, cached_resp.clone());
 			cached_resp
 		}
 		Err(content) => CachedResponse {
@@ -106,7 +108,7 @@ pub async fn compress_and_cache(
 			kind: resp.kind,
 			mtime: 0,
 			mtimestring: None,
-			content: Bytes::from(content),
+			content: Bytes::from(content.into_boxed_slice()),
 			file: resp.file,
 		},
 	}
@@ -191,18 +193,19 @@ impl CachedResponse {
 		if let Some(ref mtimestring) = self.mtimestring {
 			builder = builder.header(header::LAST_MODIFIED, mtimestring);
 		}
-		builder.body(Bytes::from(self.content.clone()))
+		builder.body(self.content.clone())
 	}
 }
 
 async fn handle_get_core(
-	path: &str,
+	uri: &http::Uri,
 	ims: Option<HttpDate>,
 	accept: Option<AcceptEncoding>,
-	pgpool: PgPool,
-	users: AsyncUsers,
-	cache: AsyncCache,
+	pgpool: &PgPool,
+	users: &AsyncUsers,
+	cache: &AsyncCache,
 ) -> Result<Response<Bytes>, http::Error> {
+	let path = uri.path();
 	let path = if path == "/" { "/index.html" } else { path };
 	if path.contains("..") || !path.starts_with('/') {
 		return response::Builder::new().status(403).body(Bytes::new());
@@ -213,7 +216,7 @@ async fn handle_get_core(
 		accept.map(|x| x.0).unwrap_or(Encoding::identity)
 	};
 	let invalidate = {
-		let rcache = cache.read().await;
+		let rcache = cache.read().unwrap_or_else(|e| e.into_inner());
 		if let Some(cached) = rcache.get_map(accept).get(path) {
 			if cached
 				.file
@@ -241,7 +244,7 @@ async fn handle_get_core(
 		}
 	};
 	if invalidate {
-		cache.write().await.remove(path);
+		cache.write().unwrap_or_else(|e| e.into_inner()).remove(path);
 	}
 	let res: PlainResponse = if path.len() == "/Cards/".len() + ".webp".len() + 3
 		&& path.starts_with("/Cards/")
@@ -387,11 +390,15 @@ async fn handle_get_core(
 		}
 	} else if path.starts_with("/collection/") {
 		let name = &path["/collection/".len()..];
+		let alt = uri.query().unwrap_or("");
 		if let Ok(client) = pgpool.get().await {
 			if let Some(user) = users.write().await.load(&*client, name).await {
 				let user = user.lock().await;
-				let pool = &user.data.pool;
-				let bound = &user.data.accountbound;
+				let Some(userdata) = user.data.get(alt) else {
+					return response::Builder::new().status(404).body(Bytes::new());
+				};
+				let pool = &userdata.pool;
+				let bound = &userdata.accountbound;
 				let mut cards: BTreeMap<i16, [u16; 8]> = BTreeMap::new();
 				for i in 0..2 {
 					let (cards0, counts) = if i == 0 { (0, pool) } else { (4, bound) };
@@ -501,13 +508,13 @@ async fn handle_get_core(
 }
 
 pub async fn handle_get(
-	path: &str,
+	uri: &http::Uri,
 	ims: Option<HttpDate>,
 	accept: Option<AcceptEncoding>,
-	pgpool: PgPool,
-	users: AsyncUsers,
-	cache: AsyncCache,
+	pgpool: &PgPool,
+	users: &AsyncUsers,
+	cache: &AsyncCache,
 ) -> Response<Full<Bytes>> {
-	let (head, body) = handle_get_core(path, ims, accept, pgpool, users, cache).await.unwrap().into_parts();
+	let (head, body) = handle_get_core(uri, ims, accept, pgpool, users, cache).await.unwrap().into_parts();
 	Response::from_parts(head, Full::<Bytes>::from(body))
 }

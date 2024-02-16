@@ -4,15 +4,16 @@ import { emit, setCmds } from '../sock.jsx';
 import * as store from '../store.jsx';
 const MainMenu = import('./MainMenu.jsx');
 
-export default function Login(props) {
+export default function Login() {
 	const rx = store.useRx();
 	const [commit, setCommit] = createSignal(null);
 	let password;
 
 	const loginClick = auth => {
-		if (rx.opts.username) {
-			store.setOpt('username', rx.opts.username.trim());
-			const data = { x: 'login', u: rx.opts.username };
+		const username = rx.opts.username && rx.opts.username.trim();
+		if (username) {
+			store.setOpt('username', username);
+			const data = { x: 'login', u: username };
 			if (auth) data.a = auth;
 			else data.p = password.value;
 			emit(data);
@@ -20,19 +21,18 @@ export default function Login(props) {
 	};
 
 	const maybeLogin = e => {
-		if (e.which === 13) loginClick();
+		if (e.key === 'Enter') loginClick();
 	};
 
 	onMount(() => {
 		setCmds({
 			login: data => {
 				if (!data.err) {
-					delete data.x;
-					store.setUser(data);
+					store.setUser(data.name, data.auth, data.data);
 					if (rx.opts.remember && typeof localStorage !== 'undefined') {
 						localStorage.auth = data.auth;
 					}
-					if (!data.accountbound && !data.pool) {
+					if (!data.data['']) {
 						store.doNav(import('./ElementSelect.jsx'));
 					} else {
 						store.setOptTemp('deck', store.getDeck());
@@ -63,7 +63,7 @@ export default function Login(props) {
 				placeholder="Username"
 				autoFocus
 				tabIndex="1"
-				onKeyPress={maybeLogin}
+				onKeyDown={maybeLogin}
 				value={rx.opts.username ?? ''}
 				onInput={e => store.setOpt('username', e.target.value)}
 				style="position:absolute;left:270px;top:350px"
@@ -73,7 +73,7 @@ export default function Login(props) {
 				type="password"
 				placeholder="Password"
 				tabIndex="2"
-				onKeyPress={maybeLogin}
+				onKeyDown={maybeLogin}
 				style="position:absolute;left:270px;top:380px"
 			/>
 			<label style="position:absolute;left:270px;top:410px">
@@ -98,7 +98,7 @@ export default function Login(props) {
 			<input
 				type="button"
 				value="New Account"
-				onClick={e => store.doNav(import('./ElementSelect.jsx'))}
+				onClick={() => store.doNav(import('./ElementSelect.jsx'))}
 				style="position:absolute;left:430px;top:380px;width:100px"
 			/>
 			<Show when={commit()}>
@@ -108,7 +108,7 @@ export default function Login(props) {
 						rel="noopener"
 						href={data().html_url}
 						style="max-width:670px;min-width:470px;position:absolute;left:220px;top:460px;height:140px;white-space:pre-wrap;overflow-y:auto">
-						{data().commit.message.replace('\n', '\n\n')}
+						{data().commit.message}
 					</a>
 				)}
 			</Show>

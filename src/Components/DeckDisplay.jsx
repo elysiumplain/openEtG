@@ -13,19 +13,20 @@ export default function DeckDisplay(props) {
 				card = props.cards.Codes[code];
 			if (card) {
 				j++;
-				let opacity;
+				let style = null;
 				if (props.pool && !card.isFree()) {
-					const tooMany =
-						!card.pillar &&
-						cardCounts[asUpped(asShiny(code, false), false)] >= 6;
+					const uncode = asUpped(asShiny(code, false), false);
+					const tooMany = !card.pillar && cardCounts[uncode] >= 6;
+					if (!card.pillar) cardCounts[uncode] = (cardCounts[uncode] ?? 0) + 1;
 					const notEnough = !props.cards.checkPool(
 						props.pool,
-						cardCounts,
 						cardMinus,
 						card,
+						uncode,
+						props.autoup,
 					);
 					if (tooMany || notEnough) {
-						opacity = '.5';
+						style = { opacity: '.5' };
 					}
 				}
 				children.push(
@@ -35,12 +36,7 @@ export default function DeckDisplay(props) {
 							props.onMouseOver && (() => props.onMouseOver(i, card))
 						}
 						onClick={props.onClick && (() => props.onClick(i, card))}
-						style={{
-							position: 'absolute',
-							left: `${(props.x ?? 0) + 100 + ((j / 10) | 0) * 99}px`,
-							top: `${(props.y ?? 0) + 32 + (j % 10) * 19}px`,
-							opacity,
-						}}
+						style={style}
 					/>,
 				);
 			} else {
@@ -50,17 +46,18 @@ export default function DeckDisplay(props) {
 		}
 		if (mark !== -1 && props.renderMark) {
 			children.push(
-				<span
-					class={'ico e' + mark}
-					style={{
-						position: 'absolute',
-						left: `${(props.x ?? 0) + 66}px`,
-						top: `${(props.y ?? 0) + 188}px`,
-					}}
-				/>,
+				<span class={'ico e' + mark} style="position:absolute;left:-36px" />,
 			);
 		}
 		return children;
 	};
-	return <>{children}</>;
+	return (
+		<div
+			class="deckdisplay"
+			style={`position:absolute;left:${(props.x ?? 0) + 100}px;top:${
+				(props.y ?? 0) + 32
+			}px`}>
+			{children}
+		</div>
+	);
 }

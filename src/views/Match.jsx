@@ -11,7 +11,7 @@ import {
 import { Index, For, Show } from 'solid-js/web';
 
 import { playSound } from '../audio.js';
-import { eleNames, strcols, maybeLightenStr } from '../ui.js';
+import { strcols, maybeLightenStr } from '../ui.js';
 import { encodeCode, asShiny } from '../etgutil.js';
 import { mkAi } from '../mkAi.js';
 import { userEmit, userExec, setCmds } from '../sock.jsx';
@@ -268,6 +268,30 @@ function LightningFx(props) {
 	);
 }
 
+function SilenceFx(props) {
+	const time = useAnimation();
+	createEffect(() => {
+		if (time() > 512) props.setEffects(removeFx(props.self));
+	});
+	return (
+		<svg
+			height={time() / 4}
+			width={time() / 4}
+			viewBox="0 0 64 64"
+			style={`position:absolute;left:${props.pos.x}px;top:${
+				props.pos.y
+			}px;transform:translate(-50%,-50%);opacity:${(
+				1 -
+				time() ** 1.5 / 11584
+			).toFixed(2)};pointer-events:none;z-index:4`}>
+			<rect x="24" y="16" width="16" height="32" rx="8" fill="#048" />
+			<rect x="30" y="48" width="4" height="8" fill="#048" />
+			<rect x="26" y="56" width="12" height="2" rx="1" fill="#048" />
+			<line x1="20" y1="56" x2="44" y2="8" stroke="#048" />
+		</svg>
+	);
+}
+
 function BoltFx(props) {
 	const time = useAnimation();
 	createEffect(() => {
@@ -430,7 +454,7 @@ function Thing(props) {
 
 	return (
 		<div
-			class={`${isSpell() ? 'inst handinst ' : 'inst '}${tgtclass(
+			class={`${isSpell() ? 'inst handinst' : 'inst'}${tgtclass(
 				props.game,
 				props.p1id,
 				props.id,
@@ -451,7 +475,19 @@ function Thing(props) {
 				'z-index': '2',
 				'pointer-events': ~props.game.getIndex(props.id) ? undefined : 'none',
 			}}
-			onMouseMove={setInfo}
+			onMouseMove={e => {
+				e.preventDefault();
+				if (
+					e.buttons & 1 &&
+					!props.targeting &&
+					(props.opts.shiftDrag || e.shiftKey) &&
+					props.game.get_kind(props.id) !== Kind.Spell
+				) {
+					props.onClick(props.id);
+				} else {
+					setInfo(e);
+				}
+			}}
 			onMouseOver={setInfo}
 			onMouseLeave={props.onMouseOut}
 			onClick={[props.onClick, props.id]}>
@@ -460,7 +496,7 @@ function Thing(props) {
 				fallback={<div class="ico cback" style="left:2px;top:2px" />}>
 				<div
 					style={`width:64px;height:64px;pointer-events:none;background-color:${bgcolor()}`}>
-					<Show when={!props.lofiArt}>
+					<Show when={!props.opts.lofiArt}>
 						<img
 							class={props.game.getCard(props.id).shiny ? 'shiny' : ''}
 							src={`/Cards/${encodeCode(
@@ -537,40 +573,45 @@ function Things(props) {
 				: { opacity: 0, ...props.game.tgtToPos(id, props.p1id) }
 			);
 		});
-	const death = new Map(),
-		[getDeath, updateDeath] = createSignal(death, { equals: false }),
+	const [getDeath, setDeath] = createSignal(new Map()),
+		[allthings, setAll] = createSignal([]),
 		banned = new Set();
-	const [allthings, setAll] = createSignal(props.things);
 	createComputed(oldthings => {
 		untrack(() => {
-			const newthings = new Set(props.things);
-			let updated = false;
-			for (const id of newthings) {
-				if (death.has(id)) death.delete(id);
-				else if (banned.has(id)) banned.delete(id);
+			const death = getDeath();
+			let newDeath = null;
+			for (const id of props.things) {
+				if (death.has(id)) {
+					newDeath = newDeath ?? new Map(death);
+					newDeath.delete(id);
+				} else if (banned.has(id)) banned.delete(id);
 			}
+			const newthings = new Set(props.things);
 			for (const id of oldthings) {
 				if (!newthings.has(id) && !banned.has(id) && props.game.has_id(id)) {
-					const endpos = props.endPos.get(id);
+					const endpos = props.endPos.get(id) ?? id;
 					const pos =
 						endpos < 0 ?
-							{ x: 103, y: -endpos === props.p1id ? 551 : 258 }
-						:	props.getIdTrack(endpos || id);
+							{ x: 103, y: ~endpos === props.p1id ? 551 : 258 }
+						:	props.getIdTrack(endpos);
 					if (pos) {
-						death.set(id, { opacity: 0, ...pos });
-						updated = true;
+						newDeath = newDeath ?? new Map(death);
+						newDeath.set(id, { opacity: 0, ...pos });
 					}
 				}
 			}
-			setAll(props.things.concat(Array.from(death.keys())));
-			if (updated) updateDeath(death);
+			if (newDeath) setDeath(newDeath);
 		});
+		setAll(props.things.concat(Array.from(getDeath().keys())));
 		return props.things;
 	}, props.things);
 	const unregister = id => {
+		const death = getDeath();
 		if (death.has(id)) {
 			banned.add(id);
-			death.delete(id);
+			const newdeath = new Map(death);
+			newdeath.delete(id);
+			setDeath(newdeath);
 		}
 	};
 	return (
@@ -606,7 +647,7 @@ function Things(props) {
 						}}>
 						{pos => (
 							<Thing
-								lofiArt={props.lofiArt}
+								opts={props.opts}
 								game={props.game}
 								p1id={props.p1id}
 								setInfo={props.setInfo}
@@ -650,9 +691,9 @@ function addNoHealData(game, newdata) {
 
 function tgtclass(game, p1id, id, targeting) {
 	if (targeting) {
-		if (targeting.filter(id)) return 'cantarget';
+		if (targeting.filter(id)) return ' cantarget';
 	} else if (game.get_owner(id) === p1id && game.canactive(id))
-		return 'canactive';
+		return ' canactive';
 	return '';
 }
 
@@ -723,24 +764,25 @@ function removeFx(fx) {
 
 export default function Match(props) {
 	const rx = store.useRx();
-	const lofiArt = rx.opts.lofiArt ?? false,
-		playByPlayMode = rx.opts.playByPlayMode,
+	const playByPlayMode = rx.opts.playByPlayMode,
 		expectedDamageSamples = rx.opts.expectedDamageSamples | 0 || 4;
 	let aiDelay = 0,
-		streakback = 0;
+		streakback = 0,
+		hardcoreback = null,
+		hardcorebound = false;
+	if (props.game.data.ante) {
+		hardcoreback = props.game.data.ante.c;
+		hardcorebound = props.game.data.ante.bound;
+	}
+	const [pgame, setGame] = createSignal(props.game);
 	const [tempgame, setTempgame] = createSignal(null);
 	const [replayhistory, setReplayHistory] = createSignal([props.game]);
 	const [replayindex, setreplayindex] = createSignal(0);
-	const [depend, forceUpdate] = createSignal(undefined, { equals: false });
-	const pgame = () => {
-		depend();
-		return props.game;
-	};
 	const game = () =>
 		props.replay ? replayhistory()[replayindex()] : tempgame() ?? pgame();
 
 	const [p1id, setPlayer1] = createSignal(
-		props.replay ? game().turn : game().userId(rx.user.name),
+		props.replay ? game().turn : game().userId(rx.username),
 	);
 	const [p2id, setPlayer2] = createSignal(game().get_foe(p1id()));
 
@@ -824,7 +866,7 @@ export default function Match(props) {
 
 	const applyNext = (cmd, iscmd) =>
 		batch(() => {
-			const { game } = props,
+			const game = pgame(),
 				{ turn } = game,
 				prehash = iscmd || game.hash();
 			if (cmd.x === 'cast' || cmd.x === 'end') {
@@ -843,7 +885,7 @@ export default function Match(props) {
 						shiny: card.shiny,
 						c: id,
 						t: cmd.t,
-						game: game.clone(),
+						game,
 					};
 				} else {
 					play = {
@@ -856,7 +898,7 @@ export default function Match(props) {
 						shiny: false,
 						c: 0,
 						t: 0,
-						game: game.clone(),
+						game,
 					};
 				}
 				const c = cmd.x === 'cast' && cmd.c;
@@ -876,20 +918,17 @@ export default function Match(props) {
 					}
 				}
 			}
-			const effects = game.nextCmd(cmd);
-			forceUpdate();
-			if (
-				!iscmd &&
-				game.data.players.some(pl => pl.user && pl.user !== rx.user.name)
-			) {
+			const [ng, effects] = game.nextClone(cmd);
+			setGame(ng);
+			if (!iscmd && isMultiplayer(ng)) {
 				userEmit('move', {
 					id: props.gameid,
 					prehash,
-					hash: game.hash(),
+					hash: ng.hash(),
 					cmd,
 				});
 			}
-			gameStep(game);
+			gameStep(ng);
 			setEffects(state => {
 				const newstate = {};
 				for (let idx = 0; idx < effects.length; idx += 4) {
@@ -910,29 +949,31 @@ export default function Match(props) {
 							break;
 						case 'Bolt': {
 							newstate.effects ??= new Set(state.effects);
-							const pos = getIdTrack(id) ?? { x: -99, y: -99 },
-								color = strcols[param2],
-								upcolor = strcols[param2 + 13],
-								bolts = param + 1,
-								duration = 96 + bolts * 32;
-							const BoltEffect = () => (
-								<BoltFx
-									self={BoltEffect}
-									setEffects={setEffects}
-									duration={duration}
-									bolts={bolts}
-									color={color}
-									upcolor={upcolor}
-									pos={pos}
-								/>
-							);
-							newstate.effects.add(BoltEffect);
+							const pos = getIdTrack(id);
+							if (pos) {
+								const color = strcols[param2],
+									upcolor = strcols[param2 + 13],
+									bolts = param + 1,
+									duration = 96 + bolts * 32;
+								const BoltEffect = () => (
+									<BoltFx
+										self={BoltEffect}
+										setEffects={setEffects}
+										duration={duration}
+										bolts={bolts}
+										color={color}
+										upcolor={upcolor}
+										pos={pos}
+									/>
+								);
+								newstate.effects.add(BoltEffect);
+							}
 							break;
 						}
 						case 'Card':
 							newstate.effects ??= new Set(state.effects);
 							newstate.effects.add(
-								mkText(state, newstate, id, game.Cards.Codes[param].name),
+								mkText(state, newstate, id, ng.Cards.Codes[param].name),
 							);
 							break;
 						case 'Delay':
@@ -951,7 +992,7 @@ export default function Match(props) {
 							break;
 						case 'LastCard':
 							newstate.effects ??= new Set(state.effects);
-							const playerName = game.data.players[id - 1].name;
+							const playerName = ng.data.players[id - 1].name;
 							const LastCardEffect = () => (
 								<LastCardFx
 									self={LastCardEffect}
@@ -967,15 +1008,17 @@ export default function Match(props) {
 							break;
 						case 'Lightning': {
 							newstate.effects ??= new Set(state.effects);
-							const pos = getIdTrack(id) ?? { x: -99, y: -99 };
-							const LightningEffect = () => (
-								<LightningFx
-									pos={pos}
-									setEffects={setEffects}
-									self={LightningEffect}
-								/>
-							);
-							newstate.effects.add(LightningEffect);
+							const pos = getIdTrack(id);
+							if (pos) {
+								const LightningEffect = () => (
+									<LightningFx
+										pos={pos}
+										setEffects={setEffects}
+										self={LightningEffect}
+									/>
+								);
+								newstate.effects.add(LightningEffect);
+							}
 							break;
 						}
 						case 'Lives':
@@ -990,6 +1033,20 @@ export default function Match(props) {
 								mkText(state, newstate, id, `${param}:${param2}`),
 							);
 							break;
+						case 'Silence':
+							newstate.effects ??= new Set(state.effects);
+							const pos = getIdTrack(id);
+							if (pos) {
+								const SilenceEffect = () => (
+									<SilenceFx
+										pos={pos}
+										setEffects={setEffects}
+										self={SilenceEffect}
+									/>
+								);
+								newstate.effects.add(SilenceEffect);
+							}
+							break;
 						case 'Sfx':
 							playSound(Sfx[param]);
 							break;
@@ -1001,13 +1058,14 @@ export default function Match(props) {
 				}
 				return { ...state, ...newstate };
 			});
-			const newTurn = game.turn;
+			const newTurn = ng.turn;
 			if (newTurn !== turn) {
-				if (game.data.players[newTurn - 1].user === rx.user.name) {
+				if (ng.data.players[newTurn - 1].user === rx.username) {
 					setPlayer1(newTurn);
 				}
 				setFoeplays(foeplays => new Map(foeplays).set(newTurn, []));
 			}
+			return ng;
 		});
 
 	const setReplayIndex = idx =>
@@ -1017,9 +1075,12 @@ export default function Match(props) {
 			if (idx >= history.length) {
 				history = history.slice();
 				while (idx >= history.length) {
-					const gclone = history[history.length - 1].clone();
-					gclone.nextCmd(props.replay.moves[history.length - 1], false);
-					history.push(gclone);
+					const g = history[history.length - 1];
+					const [gnext, _] = g.nextClone(
+						props.replay.moves[history.length - 1],
+						false,
+					);
+					history.push(gnext);
 				}
 				setReplayHistory(history);
 			}
@@ -1030,7 +1091,7 @@ export default function Match(props) {
 		});
 
 	const gotoResult = () => {
-		const { game } = props;
+		const game = pgame();
 		if (game.data.arena) {
 			userEmit('modarena', {
 				aname: game.data.arena,
@@ -1071,14 +1132,19 @@ export default function Match(props) {
 			}
 		}
 		if (game.Cards.cardSet === 'Open') {
-			store.doNav(import('./Result.jsx'), { game, streakback });
+			store.doNav(import('./Result.jsx'), {
+				game,
+				streakback,
+				hardcoreback,
+				hardcorebound,
+			});
 		} else {
 			store.doNav(import('../vanilla/views/Result.jsx'), { game });
 		}
 	};
 
 	const endClick = (discard = 0) => {
-		const { game } = props;
+		const game = pgame();
 		if (game.turn === p1id() && game.phase === Phase.Mulligan) {
 			applyNext({ x: 'accept' });
 		} else if (game.winner) {
@@ -1088,25 +1154,22 @@ export default function Match(props) {
 				setTargeting({
 					filter: id =>
 						game.get_kind(id) === Kind.Spell && game.get_owner(id) === p1id(),
-					cb: tgt => {
-						endClick(tgt);
-						setTargeting(null);
-					},
+					cb: endClick,
 					text: 'Discard',
 					src: null,
 				});
 			} else {
+				setTargeting(null);
 				applyNext({
 					x: 'end',
 					t: discard || undefined,
 				});
-				setTargeting(null);
 			}
 		}
 	};
 
 	const cancelClick = () => {
-		const { game } = props;
+		const game = pgame();
 		if (resigning()) {
 			setResigning(false);
 		} else if (game.turn === p1id()) {
@@ -1125,41 +1188,36 @@ export default function Match(props) {
 			gotoResult();
 		} else if (!resigning()) {
 			setResigning(true);
-		} else {
-			applyNext({ x: 'resign', c: p1id() });
-			if (pgame().winner) gotoResult();
+		} else if (applyNext({ x: 'resign', c: p1id() }).winner) {
+			gotoResult();
 		}
 	};
 
 	const thingClick = id => {
-		const { game } = props;
+		const game = pgame();
 		clearCard();
 		if (props.replay || game.phase !== Phase.Play) return;
-		if (targeting()) {
-			if (targeting().filter(id)) {
-				targeting().cb(id);
+		const tgting = targeting();
+		if (tgting) {
+			if (tgting.filter(id)) {
+				setTargeting(null);
+				tgting.cb(id);
 			}
 		} else if (game.get_owner(id) === p1id() && game.canactive(id)) {
 			const cb = tgt => applyNext({ x: 'cast', c: id, t: tgt });
 			if (
-				game.get_kind(id) === Kind.Spell &&
-				game.getCard(id).type !== Kind.Spell
+				(game.get_kind(id) === Kind.Spell &&
+					game.getCard(id).type !== Kind.Spell) ||
+				!game.requires_target(id)
 			) {
 				cb();
 			} else {
-				if (!game.requires_target(id)) {
-					cb();
-				} else {
-					setTargeting({
-						filter: tgt => game.can_target(id, tgt),
-						cb: tgt => {
-							cb(tgt);
-							setTargeting(null);
-						},
-						text: game.get_cast_skill(id),
-						src: id,
-					});
-				}
+				setTargeting({
+					filter: tgt => game.can_target(id, tgt),
+					cb,
+					text: game.get_cast_skill(id),
+					src: id,
+				});
 			}
 		}
 	};
@@ -1191,37 +1249,35 @@ export default function Match(props) {
 	};
 
 	const isMultiplayer = game =>
-		game.data.players.some(pl => pl.user && pl.user !== rx.user.name);
+		game.data.players.some(pl => pl.user && pl.user !== rx.username);
 
 	const onkeydown = e => {
 		if (e.target.tagName === 'TEXTAREA') return;
-		const kc = e.which,
-			ch = e.key ?? String.fromCharCode(kc);
 		let chi;
-		if (kc === 27) {
+		if (e.key === 'Escape') {
 			resignClick();
-		} else if (ch === ' ' || kc === 13) {
+		} else if (e.key === ' ' || e.key === 'Enter') {
 			endClick();
-		} else if (ch === '\b' || ch === '0') {
+		} else if (e.key === 'Backspace' || e.key === '0') {
 			cancelClick();
-		} else if (~(chi = 'sw'.indexOf(ch))) {
+		} else if (~(chi = 'sw'.indexOf(e.key))) {
 			thingClick(chi ? p2id() : p1id());
-		} else if (~(chi = 'qa'.indexOf(ch))) {
+		} else if (~(chi = 'qa'.indexOf(e.key))) {
 			const shieldId = pgame().get_shield(chi ? p2id() : p1id());
 			if (shieldId !== 0) thingClick(shieldId);
-		} else if (~(chi = 'ed'.indexOf(ch))) {
+		} else if (~(chi = 'ed'.indexOf(e.key))) {
 			const weaponId = pgame().get_weapon(chi ? p2id() : p1id());
 			if (weaponId !== 0) thingClick(weaponId);
-		} else if (~(chi = '12345678'.indexOf(ch))) {
+		} else if (~(chi = '12345678'.indexOf(e.key))) {
 			const card = pgame().get_hand(p1id())[chi];
 			if (card) thingClick(card);
-		} else if (ch === 'p') {
+		} else if (e.key === 'p') {
 			if (pgame().turn === p1id() && p2id() !== pgame().get_foe(p1id())) {
 				applyNext({ x: 'foe', t: p2id() });
 			}
-		} else if (ch === 'l' && props.gameid) {
+		} else if (e.key === 'l' && props.gameid) {
 			userEmit('reloadmoves', { id: props.gameid });
-		} else if (~(chi = '[]'.indexOf(ch))) {
+		} else if (~(chi = '[]'.indexOf(e.key))) {
 			const { players } = pgame(),
 				dir = chi ? players.length + 1 : 1;
 			let nextId,
@@ -1247,7 +1303,8 @@ export default function Match(props) {
 	};
 
 	onMount(() => {
-		if (!props.replay && !pgame().data.spectate) {
+		if (props.replay) return;
+		if (!props.game.data.spectate) {
 			document.addEventListener('keydown', onkeydown);
 			window.addEventListener('beforeunload', onbeforeunload);
 		}
@@ -1259,19 +1316,32 @@ export default function Match(props) {
 			game.Cards.cardSet === 'Open' &&
 			(game.data.level !== undefined || isMultiplayer(game))
 		) {
-			streakback = rx.user.streak[game.data.level];
-			userExec('addloss', {
-				pvp: isMultiplayer(game),
-				l: game.data.level,
-				g: -(game.data.cost | 0),
-			});
+			const msg = {};
+			if (isMultiplayer(game)) {
+				msg.pvp = true;
+			} else {
+				streakback = rx.user.streak[game.data.level];
+				msg.l = game.data.level;
+				msg.g = -(game.data.cost | 0);
+				if (store.hasflag(rx.user, 'hardcore')) {
+					const pl = game.data.players.find(p => p.user === rx.username);
+					if (pl) {
+						const ante = store.hardcoreante(game.Cards, pl.deck);
+						Object.assign(msg, ante);
+						if (ante) {
+							hardcoreback = msg.c;
+							hardcorebound = msg.bound;
+						}
+					}
+				}
+			}
+			userExec('addloss', msg);
 		}
 		setCmds({
 			move: ({ cmd, hash }) => {
-				const { game } = props;
+				const game = pgame();
 				if ((!cmd.c || game.has_id(cmd.c)) && (!cmd.t || game.has_id(cmd.t))) {
-					applyNext(cmd, true);
-					if (game.hash() === hash) return;
+					if (applyNext(cmd, true).hash() === hash) return;
 				}
 				userEmit('reloadmoves', { id: props.gameid });
 			},
@@ -1326,32 +1396,33 @@ export default function Match(props) {
 	const cloaked = () => game().is_cloaked(p2id());
 
 	const texts = createMemo(() => {
-		const g = game();
+		const g = game(),
+			p1 = p1id();
 		let turntell, endText, cancelText;
 		if (g.phase !== Phase.End) {
 			turntell =
 				targeting() ?
 					targeting().text
-				:	`${g.turn === p1id() ? 'Your' : 'Their'} turn${
+				:	`${g.turn === p1 ? 'Your' : 'Their'} turn${
 						g.phase > Phase.Mulligan ? ''
-						: p1id() === 1 ? "\nYou're first"
+						: p1 === 1 ? "\nYou're first"
 						: "\nYou're second"
 					}`;
-			if (g.turn === p1id()) {
+			if (g.turn === p1) {
 				endText =
 					targeting() ? ''
 					: g.phase === Phase.Play ? 'End Turn'
-					: g.turn === p1id() ? 'Accept'
+					: g.turn === p1 ? 'Accept'
 					: '';
 				if (g.phase !== Phase.Play) {
-					cancelText = g.turn === p1id() ? 'Mulligan' : '';
+					cancelText = g.turn === p1 ? 'Mulligan' : '';
 				} else {
 					cancelText = targeting() || resigning() ? 'Cancel' : '';
 				}
 			} else cancelText = endText = '';
 		} else {
-			turntell = `${g.turn === p1id() ? 'Your' : 'Their'} Turn\n${
-				g.winner === p1id() ? 'Won' : 'Lost'
+			turntell = `${g.turn === p1 ? 'Your' : 'Their'} Turn\n${
+				g.winner === p1 ? 'Won' : 'Lost'
 			}`;
 			endText = 'Continue';
 			cancelText = '';
@@ -1461,16 +1532,17 @@ export default function Match(props) {
 								};opacity:.3;border-radius:4px;pointer-events:none`}
 							/>
 						</Show>
-						{[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map(k => (
-							<span
-								class={'ico ce' + k}
-								style={`position:absolute;left:${k & 1 ? 2 : 48}px;top:${
-									(j ? 106 : 308) + (((k - 1) / 2) | 0) * 18
-								}px;font-size:16px;pointer-events:none;padding-left:16px`}>
-								&nbsp;
-								{game().get_quanta(pl(), k) || ''}
-							</span>
-						))}
+						<div
+							style={`display:grid;grid-template-columns:48px 48px;position:absolute;left:2;top:${
+								j ? 106 : 308
+							}px`}>
+							{[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map(k => (
+								<span class={'quantapool ico ce' + k}>
+									&nbsp;
+									{game().get_quanta(pl(), k) || ''}
+								</span>
+							))}
+						</div>
 						<div
 							style={`background-color:#000;position:absolute;left:2px;top:${
 								j ? 36 : 531
@@ -1529,7 +1601,7 @@ export default function Match(props) {
 				endPos={effects().endPos}
 				getIdTrack={getIdTrack}
 				setIdTrack={setIdTrack}
-				lofiArt={props.lofiArt}
+				opts={rx.opts}
 				game={game()}
 				p1id={p1id()}
 				setInfo={setInfo}
@@ -1669,7 +1741,7 @@ export default function Match(props) {
 									const { x } = props.replay.moves[idx];
 									if (x === 'end' || x === 'mulligan') break;
 								}
-								setReplayIndex(Math.min(idx, len));
+								setReplayIndex(idx);
 							}}
 							style="position:absolute;left:830px;top:540px;width:20px"
 						/>

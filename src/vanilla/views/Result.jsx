@@ -12,7 +12,7 @@ function exitFunc() {
 }
 
 export default function OriginalResult({ game }) {
-	const p1id = game.userId(store.state.user.name);
+	const p1id = game.userId(store.state.username);
 	const cardswon = [];
 	let electrumwon = null;
 
@@ -22,11 +22,8 @@ export default function OriginalResult({ game }) {
 
 	const onkeydown = e => {
 		if (e.target.tagName === 'TEXTAREA') return;
-		const kc = e.which;
-		if (kc === 32 || kc === 13) exitFunc();
-		else if ((kc === 87 || e.key === 'w') && canRematch()) {
-			game.data.rematch();
-		}
+		if (e.key === ' ' || e.key === 'Enter') exitFunc();
+		else if (e.key === 'w' && canRematch()) game.data.rematch();
 	};
 
 	onMount(() => {
